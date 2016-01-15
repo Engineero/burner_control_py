@@ -7,6 +7,21 @@ Created on Jan 7, 2016
 import numpy as np
 from scipy import integrate
 
+def one_sphere(point, radius=1.0):
+    """
+    Checks whether points are inside or outside of a hypersphere.
+    
+    Args:
+        point (double) array representing test condition
+        radius (double, default=1.0) radius of hypersphere to test
+    
+    Return:
+        1 if point is outside of the sphere (good)
+        0 if point is inside of or on the sphere (bad)
+    """
+    
+    return 1 if sum([num**2 for num in point]) > radius**2 else 0
+
 def heavyside(self, time):
   """
   Defines the heavyside function using np.sign.
@@ -20,7 +35,7 @@ def heavyside(self, time):
     
   return 0.5*(np.sign(time) + 1)
   
-def mfc_ode(self, t, y, u, K, tau, delay):
+def first_order_delay(self, t, y, u, K, tau, delay):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.
@@ -83,12 +98,13 @@ class Combustor():
     # Initialize sensor list
     self.sensor_list = [StaticSensor(gain=10.0, offset=1.0, location=0.0),
                         DynamicSensor(tf=tf1, location=1.0)]
-    # TODO initialize others
-    # TODO figure out transfer functions!
+    #TODO initialize others
+    #TODO figure out transfer functions!
     
     # Initilaize flame
-    self.flame = Flame(operating_map=op_map, tf=flame_tf)
-    # TODO figure out operating space maps!
+    self.flame = Flame(operating_map=lambda p: one_sphere(p, radius=2.0),
+                       tf=flame_tf)
+    #TODO figure out operating space maps!
     
     # Initialize mass flow controller (MFC) list
     #TODO set these!
@@ -99,7 +115,7 @@ class Combustor():
     mfc_list = []
     
     for K, tau, td in K_mfcs, tau_mfcs, td_mfcs:
-      mfc_list.append(MFC(lambda t, y, u: mfc_ode(t, y, u, K, tau, td), y0))
+      mfc_list.append(MFC(lambda t, y, u: first_order_delay(t, y, u, K, tau, td), y0))
     
     # Initialize the controller (which will contain the MFC list)
     self.controller = Controller(mfc_list, t_step_ctrl)
@@ -111,10 +127,10 @@ class Combustor():
     """
     
     self.controller.update(mass_flow_des, self.t_step, self.time)
-    # TODO figure out how to update desired mass flow rate
+    #TODO figure out how to update desired mass flow rate
     
     flame_snapshot = self.flame.update(self.controller.mfc_list)
-    # TODO figure out what the flame has to return
+    #TODO figure out what the flame has to return
     
     for sensor in self.sensor_list:
       sensor.update(flame_snapshot, self.t_step)
@@ -159,9 +175,19 @@ class Flame():
       flame_snapshot I am not sure what this should be yet.
     """
     
-    # TODO update the flame model and return some snapshot of the physical
+    # Build the operating point from the MFC list
+    operating_point = []
+    for mfc in mfc_list:
+      operating_point.append(mfc.get_mfc_state()[0])
+    
+    # Update the flame state based on operating map
+    if not self.state and self.operating_map(operating_point):
+      self.ignite()
+    if self.state and not self.operating_map(operating_point):
+      self.blowout()
+      
+    #TODO update the flame model and return some snapshot of the physical
     # combustor space maybe?
-    pass
 
 class MFC():
   """Defines the mass flow controller object."""
@@ -190,7 +216,7 @@ class MFC():
     
   def update(self, input_val, t_step):
     """
-    Updates the output of the MFC.
+    Updates the output of the MFC step-by-step.
     
     Args:
       input double-valued controller input to the MFC (volts).
