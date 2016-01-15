@@ -22,7 +22,7 @@ def one_sphere(point, radius=1.0):
     
     return 1 if sum([num**2 for num in point]) > radius**2 else 0
 
-def heavyside(self, time):
+def heavyside(time):
   """
   Defines the heavyside function using np.sign.
   
@@ -35,7 +35,7 @@ def heavyside(self, time):
     
   return 0.5*(np.sign(time) + 1)
   
-def first_order_delay(self, t, y, u, K, tau, delay):
+def first_order_delay(t, y, u, K, tau, delay):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.
@@ -56,7 +56,7 @@ def first_order_delay(self, t, y, u, K, tau, delay):
   
   # dydt0 = y[1]
   # dydt1 = y[2]
-  dydt2 = y[0]*-12/tau/delay**2 + y[1]*(6*delay - 12*tau)/tau/delay**2 \
+  dydt2 = -12*y[0]/tau/delay**2 + y[1]*(6*delay - 12*tau)/tau/delay**2 \
           + y[2]*(6*tau - delay)/tau/delay + u
   return [y[1], y[2], dydt2]  # dydt array
 
@@ -178,7 +178,10 @@ class Flame():
     # Build the operating point from the MFC list
     operating_point = []
     for mfc in mfc_list:
-      operating_point.append(mfc.get_mfc_state()[0])
+      operating_point.append(mfc.get_state()[0])
+    
+    #TODO update the flame model and return some snapshot of the physical
+    # combustor space maybe?
     
     # Update the flame state based on operating map
     if not self.state and self.operating_map(operating_point):
@@ -186,8 +189,6 @@ class Flame():
     if self.state and not self.operating_map(operating_point):
       self.blowout()
       
-    #TODO update the flame model and return some snapshot of the physical
-    # combustor space maybe?
 
 class MFC():
   """Defines the mass flow controller object."""
@@ -209,7 +210,12 @@ class MFC():
     self.ode.set_integrator("dopri5")  # RK45 solver
     self.ode.set_initial_value(y0)  # initial state, initial t = 0.0
     
-  def get_mfc_state(self):
+  def get_time(self):
+    """Return the internal time used by the MFC ODE."""
+    
+    return self.ode.t
+    
+  def get_state(self):
     """Return the current state of the MFC."""
     
     return self.ode.y
@@ -228,6 +234,7 @@ class MFC():
     
     self.ode.set_f_params(input_val)
     self.ode.integrate(self.ode.t + t_step)
+    return self.ode.successful()
 
 class StaticSensor(Instrument):
   """Defines a static sensor object."""
@@ -338,7 +345,7 @@ class Controller():
     #TODO read sensors, implement real control law
     self.u_ctrl = []
     for mfc, ref in self.mfc_list, mass_flow_des:
-      self.u_ctrl = 2.0*(ref - mfc.get_mfc_state()[0])  # prop. ctrl. only
+      self.u_ctrl = 2.0*(ref - mfc.get_state()[0])  # prop. ctrl. only
     
   def update(self, mass_flow_des, t_step, time):
     """
