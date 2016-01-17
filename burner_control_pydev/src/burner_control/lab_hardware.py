@@ -27,7 +27,7 @@ def heavyside(time):
   Defines the heavyside function using np.sign.
   
   Args:
-    time double-valued argument, output is 0 if time < 0, 1 otherwise.
+    time (double) output is 0 if time < 0, 1 otherwise.
   
   Returns:
     0 if time < 0, 1 otherwise.
@@ -41,12 +41,12 @@ def first_order_delay(t, y, u, K, tau, delay):
   flow controllers.
   
   Args:
-    t double-valued array of times at which to evaluate the ode
-    y double-valued array of ode state (y, y_dot, y_ddot)
-    u double-valued input to the ode
-    K double-valued gain of the first-order ode with delay
-    tau double-valued time constant of the first-order ode with delay
-    delay double-valued time delay term
+    t (double) time input needed by ODE solver
+    y (double array) ODE state [y, y_dot, y_ddot]
+    u (double) input to the ode
+    K (double) gain of the first-order ode with delay
+    tau (double) time constant of the first-order ode with delay
+    delay (double) time delay term
     
   Returns:
     [y_dot, y_ddot, y_dddot] array of time-derivatives of state vector
@@ -86,8 +86,8 @@ class Combustor():
     the atmospheric pressure, and gets everything ready to go (theoretically).
     
     Args:
-      p_atm double-valued atmospheric pressure in psi
-      t_step double-valued time step for system simulation
+      p_atm (double) atmospheric pressure in psi
+      t_step (double) time step for system simulation
     '''
     
     # Initialize constants
@@ -145,9 +145,9 @@ class Flame():
     Constructor
     
     Args:
-      map array or function mapping out the actual stable/unstable regions of
-        the system's operating space.
-      tf transfer function of the flame.
+      map (function) maps out the actual stable/unstable regions of the
+        system's operating space.
+      tf (undecided) transfer function of the flame.
     """
     
     self.operating_map = operating_map
@@ -169,10 +169,10 @@ class Flame():
     Updates the state of flame and outputs appropriate stuff.
     
     Args:
-      mfc_list list of MFC objects that are used to determine the flame state.
+      mfc_list (list) MFC objects that are used to determine the flame state.
     
     Returns:
-      flame_snapshot I am not sure what this should be yet.
+      flame_snapshot (undecided) I am not sure what this should be yet.
     """
     
     # Build the operating point from the MFC list
@@ -189,7 +189,6 @@ class Flame():
     if self.state and not self.operating_map(operating_point):
       self.blowout()
       
-
 class MFC():
   """Defines the mass flow controller object."""
   
@@ -198,12 +197,8 @@ class MFC():
     Constructor
     
     Args:
-      dynamic_eqn function defining the ODE that governs the dynamics of the
-        system.
-    
-    Keyword Args:
-      time_delay double-valued delay between a change in input and the onset of
-        a change in output (seconds).
+      dynamic_eqn (function) ODE that governs the dynamics of the system.
+      y0 (double array) initial state of the ODE.
     """
     
     self.ode = integrate.ode(ode_fcn)
@@ -218,18 +213,21 @@ class MFC():
   def get_state(self):
     """Return the current state of the MFC."""
     
-    return self.ode.y
+    if isinstance(self.ode.y, np.ndarray):
+      return self.ode.y
+    else:
+      return np.array(self.ode.y)
     
   def update(self, input_val, t_step):
     """
     Updates the output of the MFC step-by-step.
     
     Args:
-      input double-valued controller input to the MFC (volts).
-      t_step double-valued time step used for simulation.
+      input (double) controller input to the MFC ODE (volts).
+      t_step (double) time step used for simulation.
     
     Returns:
-      mass_flow double-valued mass flow rate (LPM or something).
+      mass_flow (double) mass flow rate (LPM or something).
     """
     
     self.ode.set_f_params(input_val)
@@ -244,9 +242,9 @@ class StaticSensor(Instrument):
     Constructor
     
     Args:
-      gain double-valued static gain of the sensor.
-      offset double-valued constant offset of the sensor.
-      location double-valued location of the sensor from the combustor.
+      gain (double) static gain of the sensor.
+      offset (double) constant offset of the sensor.
+      location (double) location of the sensor from the combustor.
     """
     
     self.gain = gain
@@ -266,7 +264,7 @@ class StaticSensor(Instrument):
     
     Args:
       input I don't know what this should be yet.
-      t_step double-valued time step for simulation.
+      t_step (double) time step for simulation.
     """
     
     self.state = in_value*self.gain + self.offset
@@ -279,8 +277,8 @@ class DynamicSensor(Instrument):
     Constructor
     
     Args:
-      tf transfer function defining the response of the sensor to stimulus.
-      location double-valued location of the sensor from the combustor.
+      tf (undecided) transfer function defining the response of the sensor to stimulus.
+      location (double) location of the sensor from the combustor.
     """
     
     self.tf = tf
@@ -308,7 +306,7 @@ class DynamicSensor(Instrument):
     
     Args:
       input I don't know what this should be yet.
-      t_step double-valued time step for simulation.
+      t_step (double) time step for simulation.
     """
     
     pass
@@ -324,9 +322,9 @@ class Controller():
     Constructor.
     
     Args:
-      mfc_list list of MFC objects defining the mass flow controllers.
-      t_step_ctrl double-valued iteration rate for the control law. Should be
-        longer than the simulation time step.
+      mfc_list (list) MFC objects defining the mass flow controllers.
+      t_step_ctrl (double) iteration rate for the control law. Should be longer
+        than the simulation time step.
     """
     
     self.t_step_ctrl = t_step_ctrl  # time step for updating the control law
@@ -339,7 +337,7 @@ class Controller():
     and the controller time step.
     
     Args:
-      mass_flow_des double-valued array of desired mass flow rates (LPM)
+      mass_flow_des (double array) desired mass flow rates for MFCs (LPM)
     """
     
     #TODO read sensors, implement real control law
@@ -352,9 +350,9 @@ class Controller():
     Update the controller and its MFCs.
     
     Args:
-      mass_flow_des double-valued desired mass flow rate (LPM or something).
-      t_step double-valued time step used for simulation (seconds).
-      time double-valued current simulation time (seconds).
+      mass_flow_des (double array) desired mass flow rates for MFCs (LPM)
+      t_step (double) time step used for simulation (seconds)
+      time (double) current simulation time (seconds)
     """
     
     # Update the control effort based on the current and desired state when the
