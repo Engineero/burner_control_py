@@ -8,29 +8,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from burner_control import lab_hardware
 
+# Define an ODE that I know will work.
+def test_ode(t, y, u, K, tau):
+  """
+  Defines a first-order ODE for testing the MFC update method.
+      
+  Args:
+    t double-valued time required by odeint
+    y double-valued array of current ODE state
+    u double-valued input to the ODE
+    K double-valued first-order system gain
+    tau double-valued first-order system time constant
+  """
+      
+  return K*u/tau - y/tau
+
 class TestLabHardware(unittest.TestCase):
+  """Unit tests for classes in lab_hardware.py."""
 
-
-  def test_mfc_update(self):
+  def test_mfc_class(self):
     """
     Tests the MFC class, ensuring that it is initialized correctly, and that
     its methods work.
     """
-    
-    # Define an ODE that I know will work.
-    def test_ode(t, y, u, K, tau):
-      """
-      Defines a first-order ODE for testing the MFC update method.
-      
-      Args:
-        t double-valued time required by odeint
-        y double-valued array of current ODE state
-        u double-valued input to the ODE
-        K double-valued first-order system gain
-        tau double-valued first-order system time constant
-      """
-      
-      return K*u/tau - y/tau
     
     # Set up the MFC
     K = 10.0
@@ -44,12 +44,12 @@ class TestLabHardware(unittest.TestCase):
                                  y0_2)
     
     # Run initialization tests on the MFC.
+    self.assertIsInstance(test_mfc1, lab_hardware.MFC,
+                          "Failure to initialize MFC1 to MFC class.")
     self.assertIsInstance(test_mfc1.get_state(), np.ndarray,
                           "State of MFC1 is not returned as a numpy ndarray")
     self.assertIsInstance(test_mfc2.get_state(), np.ndarray,
                           "State of MFC2 is not returned as numpy ndarray")
-    self.assertIsInstance(test_mfc1, lab_hardware.MFC,
-                          "Failure to initialize MFC1 to MFC class.")
     self.assertListEqual(test_mfc1.get_state().tolist(), y0_1,
                          "MFC1 state failed to initialize to y0_1")
     self.assertListEqual(test_mfc2.get_state().tolist(), y0_2,
@@ -97,6 +97,33 @@ class TestLabHardware(unittest.TestCase):
                      "MFC2 simulation time out of sync with global simulation time")
     
     plt.show()  # called at end to prevent plot from automatically closing
+
+  def test_controller_class(self):
+    """
+    Tests the controller class, ensuring correct initialization and that its
+    methods work.
+    """
+    
+    # Initialize list of MFCs
+    K_list = [10.0, 5.0]
+    tau_list = [2.0, 1.0]
+    y0 = [0]
+    t_step_ctrl = 0.1  # control update rate (seconds)
+    mfc_list = []
+    for K, tau in K_list, tau_list:
+      mfc_list.append(lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
+                                       y0))
+    
+    # Initialize the controller object
+    test_ctrl = lab_hardware.Controller(mfc_list, t_step_ctrl)
+    
+    # Test initialization
+    self.assertIsInstance(test_ctrl, lab_hardware.Controller,
+                          "Controller not initialized to correct class.")
+    
+    # Run the controller
+    mass_flow_des = [3.0, 2.0]  # desired flow rates per MFC
+    
 
 if __name__ == "__main__":
   #import sys;sys.argv = ['', 'Test.testLabHardware']

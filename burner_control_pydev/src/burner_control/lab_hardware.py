@@ -343,7 +343,7 @@ class Controller():
     #TODO read sensors, implement real control law
     self.u_ctrl = []
     for mfc, ref in self.mfc_list, mass_flow_des:
-      self.u_ctrl = 2.0*(ref - mfc.get_state()[0])  # prop. ctrl. only
+      self.u_ctrl.append(2.0*(ref - mfc.get_state()[0]))  # prop. ctrl. only
     
   def update(self, mass_flow_des, t_step, time):
     """
