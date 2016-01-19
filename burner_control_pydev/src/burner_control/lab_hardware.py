@@ -348,13 +348,14 @@ class Controller():
     and the controller time step.
     
     Args:
-      mass_flow_des (double array) desired mass flow rates for MFCs (LPM)
+      mass_flow_des (list, double) desired mass flow rates for MFCs (LPM)
     """
     
-    #TODO read sensors, implement real control law
-    self.u_ctrl = []
-    for mfc, ref, ctrl_law in self.mfc_list, mass_flow_des, self.control_law_list:
-      self.u_ctrl.append(ctrl_law(ref - mfc.get_state()[0]))  # prop. ctrl. only
+    #TODO test for length of mass_flow_desired
+    u = []
+    for mfc, ctrl_law, ref in self.mfc_list, self.control_law_list, mass_flow_des:
+      u.append(ctrl_law(mfc.get_state(), ref))  # prop. ctrl. only
+    self.u_ctrl = u
     
   def update(self, mass_flow_des, t_step, time):
     """
@@ -374,4 +375,7 @@ class Controller():
     
     #TODO figure out how to derive a control effort from a control law.
     for mfc, u in self.mfc_list, self.u_ctrl:
-      mfc.update(u, t_step)
+      if not mfc.update(u, t_step):  # run the update and check that it completed successfully
+        return False
+      else:
+        return True

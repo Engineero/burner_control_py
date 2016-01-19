@@ -4,7 +4,6 @@ Created on Jan 8, 2016
 @author: nathantoner
 '''
 import unittest
-import numpy as np
 import matplotlib.pyplot as plt
 from burner_control import lab_hardware
 
@@ -44,12 +43,20 @@ class TestLabHardware(unittest.TestCase):
     its methods work.
     """
     
-    # Set up the MFC
+    # Initialize constants and lists used for tests
     K = 10.0
     tau = 1.0
     td = 0.1
     y0_1 = [0.0]
     y0_2 = [0.0]*3
+    time = 0.0
+    t_list = []
+    t_step = 0.01
+    stop_time = 10.0
+    input_val = 1.0
+    response = []
+    
+    # Initialize the MFCs
     test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau), lambda x: x[0],
                                  y0_1)
     test_mfc2 = lab_hardware.MFC(lambda t, y, u: lab_hardware.first_order_delay(t, y, u, tau, td),
@@ -70,13 +77,6 @@ class TestLabHardware(unittest.TestCase):
                      "MFC1 time failed to initialize to 0.0")
     
     # Run the MFC a bit
-    time = 0.0
-    t_list = []
-    t_step = 0.01
-    stop_time = 10.0
-    input_val = 1.0
-    response = []
-    
     while test_mfc2.get_time() < stop_time:
       if test_mfc1.update(input_val, t_step) and test_mfc2.update(input_val, t_step):
         t_list.append(time)
@@ -116,19 +116,27 @@ class TestLabHardware(unittest.TestCase):
     methods work.
     """
     
-    # Initialize list of MFCs
+    # Initialize constants and lists used for test
     K_list = [10.0, 5.0]
     tau_list = [2.0, 1.0]
     y0 = [0]
-    t_step_ctrl = 0.1  # control update rate (seconds)
     mfc_list = []
-    for K, tau in K_list, tau_list:
-      mfc_list.append(lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
-                                       lambda x: x, y0))
-    
-    # Initialize list of control laws
+    t_step_ctrl = 0.1  # control update rate (seconds)
     Kp_list = [1.5, 2.0]
     control_law_list = []
+    mass_flow_des = [3.0, 2.0]  # desired flow rates per MFC
+    time = 0.0
+    t_step = 0.01
+    t_list = []
+    stop_time = 10.0
+    response = []
+    
+    # Initialize list of MFCs
+    for K, tau in K_list, tau_list:
+      mfc_list.append(lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
+                                       lambda x: x[0], y0))
+    
+    # Initialize list of control laws
     for K in Kp_list:
       control_law_list.append(lambda y, ref: test_ctrl_law(y, ref, K))
     
@@ -140,7 +148,26 @@ class TestLabHardware(unittest.TestCase):
                           "Controller not initialized to correct class.")
     
     # Run the controller
-    mass_flow_des = [3.0, 2.0]  # desired flow rates per MFC
+    while time < stop_time:
+      if test_ctrl.update(mass_flow_des, t_step, time):
+        t_list.append(time)
+        response.append(test_ctrl.get_state())
+        if time == 0.0 or time % 1.0 < t_step:
+          print("{}\t{}".format(time, test_ctrl.get_state()))
+        time += t_step
+      else:
+        break
+    
+    plt.plot(t_list, response)
+    plt.grid(True)
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("MFC Responses (LPM)")
+    plt.title("Controlled Response of MFCs")
+    plt.draw()  # draw() is non-blocking so test can continue
+    
+    #TODO test the result of running the controller
+    
+    plt.show()  # called at end to prevent plot from automatically closing
     
 
 if __name__ == "__main__":
