@@ -21,21 +21,8 @@ def one_sphere(point, radius=1.0):
     """
     
     return 1 if sum([num**2 for num in point]) > radius**2 else 0
-
-def heavyside(time):
-  """
-  Defines the heavyside function using np.sign.
   
-  Args:
-    time (double) output is 0 if time < 0, 1 otherwise.
-  
-  Returns:
-    0 if time < 0, 1 otherwise.
-  """
-    
-  return 0.5*(np.sign(time) + 1)
-  
-def first_order_delay(t, y, u, K, tau, delay):
+def first_order_delay(t, y, u, tau, delay):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.
@@ -44,7 +31,6 @@ def first_order_delay(t, y, u, K, tau, delay):
     t (double) time input needed by ODE solver
     y (double array) ODE state [y, y_dot, y_ddot]
     u (double) input to the ode
-    K (double) gain of the first-order ode with delay
     tau (double) time constant of the first-order ode with delay
     delay (double) time delay term
     
@@ -54,11 +40,29 @@ def first_order_delay(t, y, u, K, tau, delay):
       first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
   """
   
+  den = tau*delay**2
   # dydt0 = y[1]
   # dydt1 = y[2]
-  dydt2 = -12*y[0]/tau/delay**2 + y[1]*(6*delay - 12*tau)/tau/delay**2 \
-          + y[2]*(6*tau - delay)/tau/delay + u
+  dydt2 = -12*y[0]/den - y[1]*(6*delay + 12*tau)/den \
+          - y[2]*(6*tau + delay)/tau/delay + 12*u/den
   return [y[1], y[2], dydt2]  # dydt array
+
+def first_order_output(y, K, delay):
+  """
+  Defines the output function for the 2nd-order Pade approximation of a
+  1st-order ODE with time delay. Used to get pressure from the state equation.
+  
+  Args:
+    y (list, double) current state of the ODE
+    K (double) gain of the first-order ODE
+    delay (double) time delay term
+  
+  Returns:
+    P (double) pressure, approximation of first-order ODE response with time
+      delay
+  """
+  
+  return y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12
 
 class Instrument():
   """
@@ -115,10 +119,14 @@ class Combustor():
     mfc_list = []
     
     for K, tau, td in K_mfcs, tau_mfcs, td_mfcs:
-      mfc_list.append(MFC(lambda t, y, u: first_order_delay(t, y, u, K, tau, td), y0))
+      mfc_list.append(MFC(lambda t, y, u: first_order_delay(t, y, u, tau, td),
+                          lambda y: first_order_output(y, K, td), y0))
+      
+    # Initialize control law list
+    #TODO figure this out!
     
     # Initialize the controller (which will contain the MFC list)
-    self.controller = Controller(mfc_list, t_step_ctrl)
+    self.controller = Controller(mfc_list, control_law_list, t_step_ctrl)
     
   def update(self):
     """
@@ -192,18 +200,21 @@ class Flame():
 class MFC():
   """Defines the mass flow controller object."""
   
-  def __init__(self, ode_fcn, y0):
+  def __init__(self, ode_fcn, output_fcn, y0):
     """
     Constructor
     
     Args:
-      dynamic_eqn (function) ODE that governs the dynamics of the system.
+      ode_fcn (function) ODE that governs the dynamics of the system.
+      output_fcn (function) function that converts state from ODE into
+        meaningful system output, i.e. measurement function
       y0 (double array) initial state of the ODE.
     """
     
     self.ode = integrate.ode(ode_fcn)
     self.ode.set_integrator("dopri5")  # RK45 solver
     self.ode.set_initial_value(y0)  # initial state, initial t = 0.0
+    self.output_fcn = output_fcn
     
   def get_time(self):
     """Return the internal time used by the MFC ODE."""
@@ -213,10 +224,7 @@ class MFC():
   def get_state(self):
     """Return the current state of the MFC."""
     
-    if isinstance(self.ode.y, np.ndarray):
-      return self.ode.y
-    else:
-      return np.array(self.ode.y)
+    return self.output_fcn(self.ode.y)
     
   def update(self, input_val, t_step):
     """
@@ -317,18 +325,21 @@ class Controller():
   a prescribed input trajectory.
   """
   
-  def __init__(self, mfc_list, t_step_ctrl):
+  def __init__(self, mfc_list, control_law_list, t_step_ctrl):
     """
     Constructor.
     
     Args:
-      mfc_list (list) MFC objects defining the mass flow controllers.
+      mfc_list (list of MFC) MFC objects defining the mass flow controllers.
+      control_law_list (list of functions) control laws that apply to each MFC
+        in the mfc_list
       t_step_ctrl (double) iteration rate for the control law. Should be longer
         than the simulation time step.
     """
     
     self.t_step_ctrl = t_step_ctrl  # time step for updating the control law
     self.mfc_list = mfc_list
+    self.control_law_list = control_law_list
     self.u_ctrl = [0]*len(mfc_list)
   
   def control_law(self, mass_flow_des):
@@ -342,8 +353,8 @@ class Controller():
     
     #TODO read sensors, implement real control law
     self.u_ctrl = []
-    for mfc, ref in self.mfc_list, mass_flow_des:
-      self.u_ctrl.append(2.0*(ref - mfc.get_state()[0]))  # prop. ctrl. only
+    for mfc, ref, ctrl_law in self.mfc_list, mass_flow_des, self.control_law_list:
+      self.u_ctrl.append(ctrl_law(ref - mfc.get_state()[0]))  # prop. ctrl. only
     
   def update(self, mass_flow_des, t_step, time):
     """
