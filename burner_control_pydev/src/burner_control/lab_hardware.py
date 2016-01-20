@@ -341,7 +341,10 @@ class Controller():
     self.t_step_ctrl = t_step_ctrl  # time step for updating the control law
     self.mfc_list = mfc_list
     self.control_law_list = control_law_list
-    self.u_ctrl = [0]*len(mfc_list)
+    if isinstance(mfc_list, MFC):
+      self.u_ctrl = [0]  # single MFC case
+    else:
+      self.u_ctrl = [0]*len(mfc_list)  # multiple MFC case
     
   def get_output(self):
     """
@@ -349,7 +352,18 @@ class Controller():
     controlling.
     """
     
-    return [mfc.get_output() for mfc in self.mfc_list]
+    if isinstance(self.mfc_list, MFC):
+      return self.mfc_list.get_output()  # single MFC case
+    else:
+      return [mfc.get_output() for mfc in self.mfc_list]  # multiple MFC case
+  
+  def get_time(self):
+    """Return the simulation time of the first MFC in mfc_list."""
+    
+    if isinstance(self.mfc_list, MFC):
+      return self.mfc_list.get_time()  # single MFC case
+    else:
+      return self.mfc_list[0].get_time()  # multiple MFC case
   
   def control_law(self, mass_flow_des):
     """

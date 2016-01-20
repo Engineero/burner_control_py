@@ -100,6 +100,8 @@ class TestLabHardware(unittest.TestCase):
                            msg="Final value of MFC1 not close to expected value")
     self.assertEqual(test_mfc1.get_time(), time,
                      "MFC1 simulation time out of sync with global simulation time")
+    self.assertAlmostEqual(test_mfc1.get_time(), stop_time, delta=t_step,
+                           msg="MFC1 simulation time not equal to stop time.")
     
     # Test the second MFC in simulation
     self.assertTrue(test_mfc2.get_output() != y0_2[0],
@@ -108,6 +110,8 @@ class TestLabHardware(unittest.TestCase):
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(test_mfc2.get_time(), time,
                      "MFC2 simulation time out of sync with global simulation time")
+    self.assertAlmostEqual(test_mfc2.get_time(), stop_time, delta=t_step,
+                           msg="MFC2 simulation time not equal to stop time.")
     
     plt.show()  # called at end to prevent plot from automatically closing
 
@@ -139,12 +143,29 @@ class TestLabHardware(unittest.TestCase):
     control_law_list = [lambda y, ref: test_ctrl_law(y, ref, K) for K
                         in Kp_list]
     
-    # Initialize the controller object
+    # Initialize controller object with one MFC
+    test_ctrl = lab_hardware.Controller(mfc_list[0], control_law_list[0],
+                                        t_step_ctrl)
+    
+    # Test the single-MFC controller
+    #TODO test more fringe cases for initialization, add checks and exceptions to classes
+    self.assertIsInstance(test_ctrl, lab_hardware.Controller,
+                          "Single MFC controller not initialized to correct class.")
+    self.assertEqual(test_ctrl.get_time(), time,
+                     "Single MFC controller initial time not equal to initial simulation time.")
+    self.assertEqual(test_ctrl.get_output(), y0,
+                         "Single MFC controller initial value not equal to y0")
+    
+    # Initialize controller object with multiple MFCs
     test_ctrl = lab_hardware.Controller(mfc_list, control_law_list, t_step_ctrl)
     
     # Test initialization
     self.assertIsInstance(test_ctrl, lab_hardware.Controller,
-                          "Controller not initialized to correct class.")
+                          "Multiple MFC controller not initialized to correct class.")
+    self.assertEqual(test_ctrl.get_time(), time,
+                     "Multiple MFC controller initial time not equal to initial simulation time.")
+    self.assertListEqual(test_ctrl.get_output(), [0.0, 0.0],
+                         "Multiple MFC controller initial value not equal to y0")
     
     # Run the controller
     while time < stop_time:
@@ -166,6 +187,8 @@ class TestLabHardware(unittest.TestCase):
     plt.draw()  # draw() is non-blocking so test can continue
     
     #TODO test the result of running the controller
+    self.assertAlmostEqual(test_ctrl.get_time(), stop_time, delta=t_step,
+                           msg="Controller's simulation time not equal to global stop time.")
     
     plt.show()  # called at end to prevent plot from automatically closing
     
