@@ -32,7 +32,7 @@ def test_ctrl_law(y, ref, K):
     K (double) proportional controller gain
   """
   
-  return K*(y - ref)
+  return K*(ref - y)
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
@@ -46,7 +46,7 @@ class TestLabHardware(unittest.TestCase):
     # Initialize constants and lists used for tests
     K = 10.0
     tau = 1.0
-    td = 0.1
+    td = 0.2
     y0_1 = [0.0]
     y0_2 = [0.0]*3
     time = 0.0
@@ -103,7 +103,7 @@ class TestLabHardware(unittest.TestCase):
     # Test the second MFC in simulation
     self.assertTrue(test_mfc2.get_output() != y0_2[0],
                     "MFC state failed to update from y0")
-    self.assertAlmostEqual(test_mfc2.get_output(), K, places=3,
+    self.assertAlmostEqual(test_mfc2.get_output(), K, places=2,
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(test_mfc2.get_time(), time,
                      "MFC2 simulation time out of sync with global simulation time")
@@ -120,10 +120,8 @@ class TestLabHardware(unittest.TestCase):
     K_list = [10.0, 5.0]
     tau_list = [2.0, 1.0]
     y0 = [0]
-    mfc_list = []
     t_step_ctrl = 0.1  # control update rate (seconds)
-    Kp_list = [1.5, 2.0]
-    control_law_list = []
+    Kp_list = [4.0, 5.0]
     mass_flow_des = [3.0, 2.0]  # desired flow rates per MFC
     time = 0.0
     t_step = 0.01
@@ -132,13 +130,13 @@ class TestLabHardware(unittest.TestCase):
     response = []
     
     # Initialize list of MFCs
-    for K, tau in K_list, tau_list:
-      mfc_list.append(lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
-                                       lambda x: x[0], y0))
+    mfc_list = [lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
+                                 lambda x: x[0], y0)
+                for K, tau in zip(K_list, tau_list)]
     
     # Initialize list of control laws
-    for K in Kp_list:
-      control_law_list.append(lambda y, ref: test_ctrl_law(y, ref, K))
+    control_law_list = [lambda y, ref: test_ctrl_law(y, ref, K) for K
+                        in Kp_list]
     
     # Initialize the controller object
     test_ctrl = lab_hardware.Controller(mfc_list, control_law_list, t_step_ctrl)

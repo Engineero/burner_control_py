@@ -116,12 +116,10 @@ class Combustor():
     tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants
     td_mfcs = [0.2, 0.1, 0.4, 0.3]  # MFC time delays
     y0 = [0.0, 0.0, 0.0]  # initial value
-    mfc_list = []
     
-    for K, tau, td in K_mfcs, tau_mfcs, td_mfcs:
-      mfc_list.append(MFC(lambda t, y, u: first_order_delay(t, y, u, tau, td),
-                          lambda y: first_order_output(y, K, td), y0))
-      
+    mfc_list = [MFC(lambda t, y, u: first_order_delay(t, y, u, tau, td),
+                    lambda y: first_order_output(y, K, td), y0)
+                for K, tau, td in zip(K_mfcs, tau_mfcs, td_mfcs)]
     # Initialize control law list
     #TODO figure this out!
     
@@ -184,9 +182,7 @@ class Flame():
     """
     
     # Build the operating point from the MFC list
-    operating_point = []
-    for mfc in mfc_list:
-      operating_point.append(mfc.get_output()[0])
+    operating_point = [mfc.get_output() for mfc in self.mfc_list]
     
     #TODO update the flame model and return some snapshot of the physical
     # combustor space maybe?
@@ -346,6 +342,14 @@ class Controller():
     self.mfc_list = mfc_list
     self.control_law_list = control_law_list
     self.u_ctrl = [0]*len(mfc_list)
+    
+  def get_output(self):
+    """
+    Returns some indication of the states of each object that the controller is
+    controlling.
+    """
+    
+    return [mfc.get_output() for mfc in self.mfc_list]
   
   def control_law(self, mass_flow_des):
     """
@@ -357,10 +361,9 @@ class Controller():
     """
     
     #TODO test for length of mass_flow_desired
-    u = []
-    for mfc, ctrl_law, ref in self.mfc_list, self.control_law_list, mass_flow_des:
-      u.append(ctrl_law(mfc.get_output(), ref))  # prop. ctrl. only
-    self.u_ctrl = u
+    self.u_ctrl = [ctrl_law(mfc.get_output(), ref) for ctrl_law, mfc, ref
+                   in zip(self.control_law_list, self.mfc_list, mass_flow_des)]
+
     
   def update(self, mass_flow_des, t_step, time):
     """
@@ -379,7 +382,7 @@ class Controller():
       self.control_law(mass_flow_des)
     
     #TODO figure out how to derive a control effort from a control law.
-    for mfc, u in self.mfc_list, self.u_ctrl:
+    for mfc, u in zip(self.mfc_list, self.u_ctrl):
       if not mfc.update(u, t_step):  # run the update and check that it completed successfully
         return False
       else:
