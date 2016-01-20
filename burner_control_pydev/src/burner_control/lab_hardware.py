@@ -377,13 +377,12 @@ class Controller():
     
     # Update the control effort based on the current and desired state when the
     # simulation time reaches another controller period.
-    #TODO check that this works!
     if time % self.t_step_ctrl < 1.0:
       self.control_law(mass_flow_des)
     
-    #TODO figure out how to derive a control effort from a control law.
+    # Update the MFC using the current control effort.
     for mfc, u in zip(self.mfc_list, self.u_ctrl):
       if not mfc.update(u, t_step):  # run the update and check that it completed successfully
         return False
-      else:
-        return True
+    
+    return True

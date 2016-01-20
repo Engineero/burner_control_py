@@ -80,7 +80,7 @@ class TestLabHardware(unittest.TestCase):
     while test_mfc2.get_time() < stop_time:
       if test_mfc1.update(input_val, t_step) and test_mfc2.update(input_val, t_step):
         t_list.append(time)
-        response.append(test_mfc2.get_output())
+        response.append([test_mfc1.get_output(), test_mfc2.get_output()])
         if time == 0.0 or test_mfc2.get_time() % 1.0 < t_step:
           print("{}\t{}".format(test_mfc1.get_output(), test_mfc2.get_output()))
         time += t_step
@@ -92,6 +92,7 @@ class TestLabHardware(unittest.TestCase):
     plt.xlabel("Time (seconds)")
     plt.ylabel("MFC Response (LPM)")
     plt.title("Unit Step Response of MFC Simulation")
+    plt.legend(["First Order", "First Order w/ Delay"])
     plt.draw()  # draw() is non-blocking so test can continue
     
     # Test the MFC after running
@@ -161,6 +162,7 @@ class TestLabHardware(unittest.TestCase):
     plt.xlabel("Time (seconds)")
     plt.ylabel("MFC Responses (LPM)")
     plt.title("Controlled Response of MFCs")
+    plt.legend(["MFC1 r = 3.0", "MFC2 r = 2.0"])
     plt.draw()  # draw() is non-blocking so test can continue
     
     #TODO test the result of running the controller
