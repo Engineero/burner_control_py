@@ -186,7 +186,7 @@ class Flame():
     # Build the operating point from the MFC list
     operating_point = []
     for mfc in mfc_list:
-      operating_point.append(mfc.get_state()[0])
+      operating_point.append(mfc.get_output()[0])
     
     #TODO update the flame model and return some snapshot of the physical
     # combustor space maybe?
@@ -221,10 +221,15 @@ class MFC():
     
     return self.ode.t
     
-  def get_state(self):
-    """Return the current state of the MFC."""
+  def get_output(self):
+    """Return the current output of the MFC through its output function."""
     
     return self.output_fcn(self.ode.y)
+  
+  def get_state(self):
+    """Return the current internal state of the MFC ODE."""
+    
+    return self.ode.y
     
   def update(self, input_val, t_step):
     """
@@ -261,7 +266,7 @@ class StaticSensor(Instrument):
     super(StaticSensor, self).__init__(location)  # parent keeps location
     # should be able to access location with self.location!
     
-  def get_state(self):
+  def get_output(self):
     """Return the state of the sensor."""
     
     return self.state
@@ -293,7 +298,7 @@ class DynamicSensor(Instrument):
     self.state = 0.0
     super(DynamicSensor, self).__init__(location)
   
-  def get_state(self):
+  def get_output(self):
     """Return the state of the sensor."""
     
     return self.state
@@ -354,7 +359,7 @@ class Controller():
     #TODO test for length of mass_flow_desired
     u = []
     for mfc, ctrl_law, ref in self.mfc_list, self.control_law_list, mass_flow_des:
-      u.append(ctrl_law(mfc.get_state(), ref))  # prop. ctrl. only
+      u.append(ctrl_law(mfc.get_output(), ref))  # prop. ctrl. only
     self.u_ctrl = u
     
   def update(self, mass_flow_des, t_step, time):

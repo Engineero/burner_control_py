@@ -65,13 +65,13 @@ class TestLabHardware(unittest.TestCase):
     # Run initialization tests on the MFC.
     self.assertIsInstance(test_mfc1, lab_hardware.MFC,
                           "Failure to initialize MFC1 to MFC class.")
-    self.assertIsInstance(test_mfc1.get_state(), float,
+    self.assertIsInstance(test_mfc1.get_output(), float,
                           "State of MFC1 is not returned as a float")
-    self.assertIsInstance(test_mfc2.get_state(), float,
+    self.assertIsInstance(test_mfc2.get_output(), float,
                           "State of MFC2 is not returned as float")
-    self.assertEqual(test_mfc1.get_state(), y0_1[0],
+    self.assertEqual(test_mfc1.get_output(), y0_1[0],
                      "MFC1 state failed to initialize to y0_1")
-    self.assertEqual(test_mfc2.get_state(), y0_2[0],
+    self.assertEqual(test_mfc2.get_output(), y0_2[0],
                      "MFC2 state failed to initialize to y0_2")
     self.assertEqual(test_mfc1.get_time(), 0.0,
                      "MFC1 time failed to initialize to 0.0")
@@ -80,9 +80,9 @@ class TestLabHardware(unittest.TestCase):
     while test_mfc2.get_time() < stop_time:
       if test_mfc1.update(input_val, t_step) and test_mfc2.update(input_val, t_step):
         t_list.append(time)
-        response.append(test_mfc2.get_state())
+        response.append(test_mfc2.get_output())
         if time == 0.0 or test_mfc2.get_time() % 1.0 < t_step:
-          print("{}\t{}".format(test_mfc1.get_state(), test_mfc2.get_state()))
+          print("{}\t{}".format(test_mfc1.get_output(), test_mfc2.get_output()))
         time += t_step
       else:
         break
@@ -95,15 +95,15 @@ class TestLabHardware(unittest.TestCase):
     plt.draw()  # draw() is non-blocking so test can continue
     
     # Test the MFC after running
-    self.assertAlmostEqual(test_mfc1.get_state(), K, places=3,
+    self.assertAlmostEqual(test_mfc1.get_output(), K, places=3,
                            msg="Final value of MFC1 not close to expected value")
     self.assertEqual(test_mfc1.get_time(), time,
                      "MFC1 simulation time out of sync with global simulation time")
     
     # Test the second MFC in simulation
-    self.assertTrue(test_mfc2.get_state() != y0_2[0],
+    self.assertTrue(test_mfc2.get_output() != y0_2[0],
                     "MFC state failed to update from y0")
-    self.assertAlmostEqual(test_mfc2.get_state(), K, places=3,
+    self.assertAlmostEqual(test_mfc2.get_output(), K, places=3,
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(test_mfc2.get_time(), time,
                      "MFC2 simulation time out of sync with global simulation time")
@@ -151,9 +151,9 @@ class TestLabHardware(unittest.TestCase):
     while time < stop_time:
       if test_ctrl.update(mass_flow_des, t_step, time):
         t_list.append(time)
-        response.append(test_ctrl.get_state())
+        response.append(test_ctrl.get_output())
         if time == 0.0 or time % 1.0 < t_step:
-          print("{}\t{}".format(time, test_ctrl.get_state()))
+          print("{}\t{}".format(time, test_ctrl.get_output()))
         time += t_step
       else:
         break
