@@ -350,10 +350,13 @@ class Controller():
     """
     Returns some indication of the states of each object that the controller is
     controlling.
+    
+    Returns:
+      output (list) of measurements from each controlled object
     """
     
     if isinstance(self.mfc_list, MFC):
-      return self.mfc_list.get_output()  # single MFC case
+      return [self.mfc_list.get_output()]  # single MFC case
     else:
       return [mfc.get_output() for mfc in self.mfc_list]  # multiple MFC case
   

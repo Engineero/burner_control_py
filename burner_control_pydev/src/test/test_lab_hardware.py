@@ -91,8 +91,8 @@ class TestLabHardware(unittest.TestCase):
     plt.grid(True)
     plt.xlabel("Time (seconds)")
     plt.ylabel("MFC Response (LPM)")
-    plt.title("Unit Step Response of MFC Simulation")
-    plt.legend(["First Order", "First Order w/ Delay"])
+    plt.title("Unit Step Response of First-Order MFC Simulation")
+    plt.legend(["First Order", "Pade Approx. w/ Delay"])
     plt.draw()  # draw() is non-blocking so test can continue
     
     # Test the MFC after running
@@ -127,7 +127,8 @@ class TestLabHardware(unittest.TestCase):
     y0 = [0]
     t_step_ctrl = 0.1  # control update rate (seconds)
     Kp_list = [4.0, 5.0]
-    mass_flow_des = [3.0, 2.0]  # desired flow rates per MFC
+    mass_flow_des = [4.0, 2.0]  # desired flow rates per MFC
+    expected = [Kp*K*A/(1 + Kp*K) for Kp, K, A in zip(Kp_list, K_list, mass_flow_des)]
     time = 0.0
     t_step = 0.01
     t_list = []
@@ -153,7 +154,9 @@ class TestLabHardware(unittest.TestCase):
                           "Single MFC controller not initialized to correct class.")
     self.assertEqual(test_ctrl.get_time(), time,
                      "Single MFC controller initial time not equal to initial simulation time.")
-    self.assertEqual(test_ctrl.get_output(), y0,
+    self.assertIsInstance(test_ctrl.get_output(), list,
+                          "Single MFC controller output not returned as list.")
+    self.assertListEqual(test_ctrl.get_output(), y0,
                          "Single MFC controller initial value not equal to y0")
     
     # Initialize controller object with multiple MFCs
@@ -164,6 +167,8 @@ class TestLabHardware(unittest.TestCase):
                           "Multiple MFC controller not initialized to correct class.")
     self.assertEqual(test_ctrl.get_time(), time,
                      "Multiple MFC controller initial time not equal to initial simulation time.")
+    self.assertIsInstance(test_ctrl.get_output(), list,
+                          "Multiple MFC controller output not returned as list.")
     self.assertListEqual(test_ctrl.get_output(), [0.0, 0.0],
                          "Multiple MFC controller initial value not equal to y0")
     
@@ -183,12 +188,16 @@ class TestLabHardware(unittest.TestCase):
     plt.xlabel("Time (seconds)")
     plt.ylabel("MFC Responses (LPM)")
     plt.title("Controlled Response of MFCs")
-    plt.legend(["MFC1 r = 3.0", "MFC2 r = 2.0"])
+    plt.legend(["MFC1 r = {}".format(mass_flow_des[0]),
+                "MFC2 r = {}".format(mass_flow_des[1])])
     plt.draw()  # draw() is non-blocking so test can continue
     
     #TODO test the result of running the controller
     self.assertAlmostEqual(test_ctrl.get_time(), stop_time, delta=t_step,
                            msg="Controller's simulation time not equal to global stop time.")
+    for res, exp in zip(test_ctrl.get_output(), expected):
+      self.assertAlmostEqual(res, exp, delta=0.1,
+                       msg="Controlled result not equal to expected result.")
     
     plt.show()  # called at end to prevent plot from automatically closing
     
