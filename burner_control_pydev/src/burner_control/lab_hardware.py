@@ -106,8 +106,7 @@ class Combustor():
     #TODO figure out transfer functions!
     
     # Initilaize flame
-    self.flame = Flame(operating_map=lambda p: one_sphere(p, radius=2.0),
-                       tf=flame_tf)
+    self.flame = Flame(operating_map=lambda p: one_sphere(p, radius=2.0))
     #TODO figure out operating space maps!
     
     # Initialize mass flow controller (MFC) list
@@ -135,7 +134,7 @@ class Combustor():
     self.controller.update(mass_flow_des, self.t_step, self.time)
     #TODO figure out how to update desired mass flow rate
     
-    flame_snapshot = self.flame.update(self.controller.mfc_list)
+    flame_snapshot = self.flame.update(self.controller.get_output())
     #TODO figure out what the flame has to return
     
     for sensor in self.sensor_list:
@@ -146,18 +145,19 @@ class Combustor():
 class Flame():
   """Defines the flame held within the combustor."""
   
-  def __init__(self, operating_map, tf):
+  def __init__(self, operating_map, model=None):
     """
     Constructor
     
     Args:
       map (function) maps out the actual stable/unstable regions of the
         system's operating space.
-      tf (undecided) transfer function of the flame.
+      model (undecided) model relating some flame output to the current
+        operating point of the flame.
     """
     
     self.operating_map = operating_map
-    self.tf = tf
+    self.model = model  #TODO figure out what to do with the model
     self.state = False
     
   def ignite(self):
@@ -170,19 +170,27 @@ class Flame():
     
     self.state = False
     
-  def update(self, mfc_list):
+  def get_state(self):
+    """
+    Gets the flame state.
+    
+    Returns:
+      state (bool) True if flame, False if no flame
+    """
+    
+    return self.state
+    
+  def update(self, operating_point):
     """
     Updates the state of flame and outputs appropriate stuff.
     
     Args:
-      mfc_list (list) MFC objects that are used to determine the flame state.
+      operating_point (list) current state of the MFCs coming from the
+        Controller.get_output() method.
     
     Returns:
       flame_snapshot (undecided) I am not sure what this should be yet.
     """
-    
-    # Build the operating point from the MFC list
-    operating_point = [mfc.get_output() for mfc in self.mfc_list]
     
     #TODO update the flame model and return some snapshot of the physical
     # combustor space maybe?
@@ -246,37 +254,43 @@ class MFC():
 class StaticSensor(Instrument):
   """Defines a static sensor object."""
   
-  def __init__(self, gain, offset, location):
+  def __init__(self, model, location):
     """
     Constructor
     
     Args:
-      gain (double) static gain of the sensor.
-      offset (double) constant offset of the sensor.
+      model (function) describes output of sensor as function of input.
       location (double) location of the sensor from the combustor.
     """
     
-    self.gain = gain
-    self.offset = offset
-    self.state = 0.0
+    self.model = model
+    self.reading = 0.0
     super(StaticSensor, self).__init__(location)  # parent keeps location
     # should be able to access location with self.location!
     
   def get_output(self):
-    """Return the state of the sensor."""
+    """
+    Get the output of the sensor.
     
-    return self.state
+    Returns:
+      reading (double) output of the sensor.
+    """
+    
+    return self.reading
   
-  def update(self, in_value, t_step):
+  def update(self, in_value):
     """
     Update the output of the static sensor.
     
     Args:
-      input I don't know what this should be yet.
-      t_step (double) time step for simulation.
+      in_value (double) state that the sensor is reading.
+    
+    Returns:
+      reading (double) output of the sensor.
     """
     
-    self.state = in_value*self.gain + self.offset
+    self.reading = self.model(in_value)
+    return self.reading
 
 class DynamicSensor(Instrument):
   """Defines the dynamic sensor object."""
@@ -291,13 +305,13 @@ class DynamicSensor(Instrument):
     """
     
     self.tf = tf
-    self.state = 0.0
+    self.reading = 0.0
     super(DynamicSensor, self).__init__(location)
   
   def get_output(self):
     """Return the state of the sensor."""
     
-    return self.state
+    return self.reading
   
   def output_time_series(self):
     """Output the response of the sensor as a time series."""

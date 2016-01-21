@@ -7,7 +7,6 @@ import unittest
 import matplotlib.pyplot as plt
 from burner_control import lab_hardware
 
-# Define an ODE that I know will work.
 def test_ode(t, y, u, K, tau):
   """
   Defines a first-order ODE for testing the MFC update method.
@@ -18,6 +17,9 @@ def test_ode(t, y, u, K, tau):
     u (double) input to the ODE
     K (double) first-order system gain
     tau (double) first-order system time constant
+    
+  Returns:
+    response (double) = K*u/tau - y/tau
   """
       
   return K*u/tau - y/tau
@@ -26,22 +28,37 @@ def test_ctrl_law(y, ref, K):
   """
   Defines a simple proportional control law.
   
-  Args.
+  Args:
     y (double) current state of an MFC
     ref (double) desired state of the MFC
     K (double) proportional controller gain
+  
+  Returns:
+    u (double) = K*(ref - y)
   """
   
   return K*(ref - y)
+
+def test_static_model(y, K, offset):
+  """
+  Defines a simple static sensor model.
+  
+  Args:
+    y (double) current input to the sensor
+    K (double) static gain of the sensor
+    offset (double) offset of the sensor
+  
+  Returns:
+    reading (double) = K*y + offset
+  """
+  
+  return K*y + offset
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
 
   def test_mfc_class(self):
-    """
-    Tests the MFC class, ensuring that it is initialized correctly, and that
-    its methods work.
-    """
+    """Tests the lab_hardware.MFC class."""
     
     # Initialize constants and lists used for tests
     K = 10.0
@@ -57,10 +74,11 @@ class TestLabHardware(unittest.TestCase):
     response = []
     
     # Initialize the MFCs
-    test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau), lambda x: x[0],
-                                 y0_1)
+    test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
+                                 lambda x: x[0], y0_1)
     test_mfc2 = lab_hardware.MFC(lambda t, y, u: lab_hardware.first_order_delay(t, y, u, tau, td),
-                                 lambda y: lab_hardware.first_order_output(y, K, td), y0_2)
+                                 lambda y: lab_hardware.first_order_output(y, K, td),
+                                 y0_2)
     
     # Run initialization tests on the MFC.
     self.assertIsInstance(test_mfc1, lab_hardware.MFC,
@@ -116,10 +134,7 @@ class TestLabHardware(unittest.TestCase):
     plt.show()  # called at end to prevent plot from automatically closing
 
   def test_controller_class(self):
-    """
-    Tests the controller class, ensuring correct initialization and that its
-    methods work.
-    """
+    """Tests the lab_hardware.Controller class."""
     
     # Initialize constants and lists used for test
     K_list = [10.0, 5.0]
@@ -201,7 +216,75 @@ class TestLabHardware(unittest.TestCase):
     
     plt.show()  # called at end to prevent plot from automatically closing
     
+  def test_flame_class(self):
+    """Tests for the lab_hardware.Flame class."""
+    
+    # Initialize constants
+    map_radius = 1.0
+    good_points = [[2.0, 2.0],
+                   [1.0001, 0.0],
+                   [100, 200],
+                   [0.0, 1.0001],
+                   [-1.0001, 0.0],
+                   [0.0, -1.0001],
+                   [-2.0, -2.0],
+                   [2.0, 0, 0.1, -0.1]]
+    bad_points = [[1.0, 0.0],
+                  [0.0, 1.0],
+                  [0.0, 0.0],
+                  [0.5, 0.5],
+                  [-1.0, 0.0],
+                  [0.0, -1.0],
+                  [-0.5, -0.5],
+                  [0.1, 0.5, -0.5, 0.1]]
+    
+    # Initialize flame object
+    test_flame = lab_hardware.Flame(lambda p: lab_hardware.one_sphere(p, map_radius))
+    
+    # Test the initialization
+    self.assertIsInstance(test_flame, lab_hardware.Flame,
+                          "Test flame object not initialized to Flame class.")
+    self.assertFalse(test_flame.get_state(),
+                     "Flame state not initialized to False")
+    
+    # Test the flame ignites when given a valid operating point
+    for point in good_points:
+      test_flame.update(point)
+      self.assertTrue(test_flame.get_state(),
+                      "Flame does not ignite when moved to good op. point.")
+    
+    # Test the flame blows out when given a bad operating point
+    for point in bad_points:
+      test_flame.update(point)
+      self.assertFalse(test_flame.get_state(),
+                       "Flame does not blow out when moved to a bad op. point.")
 
+  def test_static_sensor_class(self):
+    """Tests for the lab_hardware.StaticSensor class."""
+    
+    # Initialize constants
+    location = 1.0
+    K = 2.0  # sensor gain
+    offset = 0.5  # sensor offset
+    P_actual = 14.0  # actual pressure to read
+    
+    # Initialize StaticSensor object
+    test_sensor = lab_hardware.StaticSensor(lambda y: test_static_model(y, K, offset),
+                                            location)
+    
+    # Test initialization
+    self.assertIsInstance(test_sensor, lab_hardware.StaticSensor,
+                          "Test static sensor not initialized to StaticSensor class.")
+    self.assertEqual(test_sensor.get_output(), 0.0,
+                     "Sensor does not return expected initial reading.")
+    
+    # Test readings with the sensor
+    self.assertEqual(test_sensor.update(P_actual), K*P_actual + offset,
+                     "Measured pressure does not equal expected value.")
+    self.assertEqual(test_sensor.get_output(), K*P_actual + offset,
+                     "Stored sensor state does not equal expected value.")
+    
+    
 if __name__ == "__main__":
   #import sys;sys.argv = ['', 'Test.testLabHardware']
   unittest.main()
