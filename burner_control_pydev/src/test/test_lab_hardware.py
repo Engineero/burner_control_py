@@ -3,23 +3,27 @@ Created on Jan 8, 2016
 
 @author: nathantoner
 '''
+
 import unittest
 import matplotlib.pyplot as plt
-from burner_control import lab_hardware
+from burner_control import lab_hardware, sim_functions
+
+plot_flag = False  # True if we want some tests to plot results
+
 
 def test_ode(t, y, u, K, tau):
   """
   Defines a first-order ODE for testing the MFC update method.
       
   Args:
-    t (double) time required by odeint
-    y (double) array of current ODE state
-    u (double) input to the ODE
-    K (double) first-order system gain
-    tau (double) first-order system time constant
+    t (double): time required by odeint
+    y (double): array of current ODE state
+    u (double): input to the ODE
+    K (double): first-order system gain
+    tau (double): first-order system time constant
     
   Returns:
-    response (double) = K*u/tau - y/tau
+    double: response = K*u/tau - y/tau
   """
       
   return K*u/tau - y/tau
@@ -29,30 +33,15 @@ def test_ctrl_law(y, ref, K):
   Defines a simple proportional control law.
   
   Args:
-    y (double) current state of an MFC
-    ref (double) desired state of the MFC
-    K (double) proportional controller gain
+    y (double): current state of an MFC
+    ref (double): desired state of the MFC
+    K (double): proportional controller gain
   
   Returns:
-    u (double) = K*(ref - y)
+    double: control effort u = K*(ref - y)
   """
   
   return K*(ref - y)
-
-def test_static_model(y, K, offset):
-  """
-  Defines a simple static sensor model.
-  
-  Args:
-    y (double) current input to the sensor
-    K (double) static gain of the sensor
-    offset (double) offset of the sensor
-  
-  Returns:
-    reading (double) = K*y + offset
-  """
-  
-  return K*y + offset
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
@@ -76,8 +65,8 @@ class TestLabHardware(unittest.TestCase):
     # Initialize the MFCs
     test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
                                  lambda x: x[0], y0_1)
-    test_mfc2 = lab_hardware.MFC(lambda t, y, u: lab_hardware.first_order_delay(t, y, u, tau, td),
-                                 lambda y: lab_hardware.first_order_output(y, K, td),
+    test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, tau, td),
+                                 lambda y: sim_functions.first_order_output(y, K, td),
                                  y0_2)
     
     # Run initialization tests on the MFC.
@@ -95,6 +84,7 @@ class TestLabHardware(unittest.TestCase):
                      "MFC1 time failed to initialize to 0.0")
     
     # Run the MFC a bit
+    print("MFC1 output\tMFC2 output")
     while test_mfc2.get_time() < stop_time:
       if test_mfc1.update(input_val, t_step) and test_mfc2.update(input_val, t_step):
         t_list.append(time)
@@ -104,14 +94,6 @@ class TestLabHardware(unittest.TestCase):
         time += t_step
       else:
         break
-    
-    plt.plot(t_list, response)
-    plt.grid(True)
-    plt.xlabel("Time (seconds)")
-    plt.ylabel("MFC Response (LPM)")
-    plt.title("Unit Step Response of First-Order MFC Simulation")
-    plt.legend(["First Order", "Pade Approx. w/ Delay"])
-    plt.draw()  # draw() is non-blocking so test can continue
     
     # Test the MFC after running
     self.assertAlmostEqual(test_mfc1.get_output(), K, places=3,
@@ -131,7 +113,15 @@ class TestLabHardware(unittest.TestCase):
     self.assertAlmostEqual(test_mfc2.get_time(), stop_time, delta=t_step,
                            msg="MFC2 simulation time not equal to stop time.")
     
-    plt.show()  # called at end to prevent plot from automatically closing
+      # Plot the response of the MFCs
+    if plot_flag:
+      plt.plot(t_list, response)
+      plt.grid(True)
+      plt.xlabel("Time (seconds)")
+      plt.ylabel("MFC Response (LPM)")
+      plt.title("Unit Step Response of First-Order MFC Simulation")
+      plt.legend(["First Order", "Pade Approx. w/ Delay"])
+      plt.show()  # called at end to prevent plot from automatically closing
 
   def test_controller_class(self):
     """Tests the lab_hardware.Controller class."""
@@ -188,8 +178,9 @@ class TestLabHardware(unittest.TestCase):
                          "Multiple MFC controller initial value not equal to y0")
     
     # Run the controller
+    print("Time\tControlled Response")
     while time < stop_time:
-      if test_ctrl.update(mass_flow_des, t_step, time):
+      if test_ctrl.update(mass_flow_des, t_step):
         t_list.append(time)
         response.append(test_ctrl.get_output())
         if time == 0.0 or time % 1.0 < t_step:
@@ -198,15 +189,6 @@ class TestLabHardware(unittest.TestCase):
       else:
         break
     
-    plt.plot(t_list, response)
-    plt.grid(True)
-    plt.xlabel("Time (seconds)")
-    plt.ylabel("MFC Responses (LPM)")
-    plt.title("Controlled Response of MFCs")
-    plt.legend(["MFC1 r = {}".format(mass_flow_des[0]),
-                "MFC2 r = {}".format(mass_flow_des[1])])
-    plt.draw()  # draw() is non-blocking so test can continue
-    
     #TODO test the result of running the controller
     self.assertAlmostEqual(test_ctrl.get_time(), stop_time, delta=t_step,
                            msg="Controller's simulation time not equal to global stop time.")
@@ -214,7 +196,16 @@ class TestLabHardware(unittest.TestCase):
       self.assertAlmostEqual(res, exp, delta=0.1,
                        msg="Controlled result not equal to expected result.")
     
-    plt.show()  # called at end to prevent plot from automatically closing
+    # PLot the response of the controlled MFCs
+    if plot_flag:
+      plt.plot(t_list, response)
+      plt.grid(True)
+      plt.xlabel("Time (seconds)")
+      plt.ylabel("MFC Responses (LPM)")
+      plt.title("Controlled Response of MFCs")
+      plt.legend(["MFC1 r = {}".format(mass_flow_des[0]),
+                  "MFC2 r = {}".format(mass_flow_des[1])])
+      plt.show()  # called at end to prevent plot from automatically closing
     
   def test_flame_class(self):
     """Tests for the lab_hardware.Flame class."""
@@ -239,7 +230,7 @@ class TestLabHardware(unittest.TestCase):
                   [0.1, 0.5, -0.5, 0.1]]
     
     # Initialize flame object
-    test_flame = lab_hardware.Flame(lambda p: lab_hardware.one_sphere(p, map_radius))
+    test_flame = lab_hardware.Flame(lambda p: sim_functions.one_sphere(p, map_radius))
     
     # Test the initialization
     self.assertIsInstance(test_flame, lab_hardware.Flame,
@@ -249,13 +240,15 @@ class TestLabHardware(unittest.TestCase):
     
     # Test the flame ignites when given a valid operating point
     for point in good_points:
-      test_flame.update(point)
+      self.assertEqual(test_flame.update(point), True,
+                       "Flame not returning correct state from update method (True).")
       self.assertTrue(test_flame.get_state(),
                       "Flame does not ignite when moved to good op. point.")
     
     # Test the flame blows out when given a bad operating point
     for point in bad_points:
-      test_flame.update(point)
+      self.assertEqual(test_flame.update(point), False,
+                       "Flame not returning correct state from update method (False).")
       self.assertFalse(test_flame.get_state(),
                        "Flame does not blow out when moved to a bad op. point.")
 
@@ -266,10 +259,12 @@ class TestLabHardware(unittest.TestCase):
     location = 1.0
     K = 2.0  # sensor gain
     offset = 0.5  # sensor offset
-    P_actual = 14.0  # actual pressure to read
+    mean = 0.0  # Gaussian white noise mean
+    std = 0.01  # Gaussian white noise standard deviation
+    P_list = [0, 1, 2, 3, 4, 5, 14.0, -1.1, -2]  # actual pressures to read
     
     # Initialize StaticSensor object
-    test_sensor = lab_hardware.StaticSensor(lambda y: test_static_model(y, K, offset),
+    test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, K, offset, mean, std),
                                             location)
     
     # Test initialization
@@ -277,12 +272,17 @@ class TestLabHardware(unittest.TestCase):
                           "Test static sensor not initialized to StaticSensor class.")
     self.assertEqual(test_sensor.get_output(), 0.0,
                      "Sensor does not return expected initial reading.")
+    self.assertEqual(test_sensor.get_location(), location,
+                     "Sensor object does not return the correct location.")
     
     # Test readings with the sensor
-    self.assertEqual(test_sensor.update(P_actual), K*P_actual + offset,
-                     "Measured pressure does not equal expected value.")
-    self.assertEqual(test_sensor.get_output(), K*P_actual + offset,
-                     "Stored sensor state does not equal expected value.")
+    for P_actual in P_list:
+      expected = sim_functions.static_model(P_actual, K, offset)
+      self.assertNotEqual(test_sensor.update(P_actual), expected,
+                          "Measured pressure with noise equals value without noise. Noise may not be working.")
+      self.assertAlmostEqual(test_sensor.get_output(), expected,
+                             delta=3*std,
+                             msg="Stored sensor state >3*std away from expected state.")
     
     
 if __name__ == "__main__":

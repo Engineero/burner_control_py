@@ -4,65 +4,9 @@ Created on Jan 7, 2016
 @author: nathantoner
 '''
 
-import numpy as np
 from scipy import integrate
+from burner_control import sim_functions
 
-def one_sphere(point, radius=1.0):
-    """
-    Checks whether points are inside or outside of a hypersphere.
-    
-    Args:
-        point (double) array representing test condition
-        radius (double, default=1.0) radius of hypersphere to test
-    
-    Return:
-        1 if point is outside of the sphere (good)
-        0 if point is inside of or on the sphere (bad)
-    """
-    
-    return 1 if sum([num**2 for num in point]) > radius**2 else 0
-  
-def first_order_delay(t, y, u, tau, delay):
-  """
-  Defines the general form of the ODE that governs the dynamics of the mass
-  flow controllers.
-  
-  Args:
-    t (double) time input needed by ODE solver
-    y (double array) ODE state [y, y_dot, y_ddot]
-    u (double) input to the ode
-    tau (double) time constant of the first-order ode with delay
-    delay (double) time delay term
-    
-  Returns:
-    [y_dot, y_ddot, y_dddot] array of time-derivatives of state vector
-      evaluated using a second-order Pade approximation of the time-delayed
-      first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
-  """
-  
-  den = tau*delay**2
-  # dydt0 = y[1]
-  # dydt1 = y[2]
-  dydt2 = -12*y[0]/den - y[1]*(6*delay + 12*tau)/den \
-          - y[2]*(6*tau + delay)/tau/delay + 12*u/den
-  return [y[1], y[2], dydt2]  # dydt array
-
-def first_order_output(y, K, delay):
-  """
-  Defines the output function for the 2nd-order Pade approximation of a
-  1st-order ODE with time delay. Used to get pressure from the state equation.
-  
-  Args:
-    y (list, double) current state of the ODE
-    K (double) gain of the first-order ODE
-    delay (double) time delay term
-  
-  Returns:
-    P (double) pressure, approximation of first-order ODE response with time
-      delay
-  """
-  
-  return y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12
 
 class Instrument():
   """
@@ -71,12 +15,23 @@ class Instrument():
   """
   def __init__(self, location):
     """
-    Constructor
+    Constructor.
     
     Args:
-      location double-valued location of the instrument from the combustor.
+      location (double): location of the instrument from the combustor
     """
+    
     self.location = location
+  
+  def get_location(self):
+    """
+    Gets the location property of the instrument.
+    
+    Returns:
+      double: location of the instrument from the combustor
+    """
+
+    return self.location
   
 class Combustor():
   '''
@@ -90,34 +45,35 @@ class Combustor():
     the atmospheric pressure, and gets everything ready to go (theoretically).
     
     Args:
-      p_atm (double) atmospheric pressure in psi
-      t_step (double) time step for system simulation
+      p_atm (double): atmospheric pressure in psi
+      t_step (double): time step for system simulation
     '''
     
     # Initialize constants
     self.p_atm = p_atm
     self.t_step = t_step
     self.time = 0.0  # initialize current time to zero
-    
-    # Initialize sensor list
-    self.sensor_list = [StaticSensor(gain=10.0, offset=1.0, location=0.0),
-                        DynamicSensor(tf=tf1, location=1.0)]
-    #TODO initialize others
-    #TODO figure out transfer functions!
-    
-    # Initilaize flame
-    self.flame = Flame(operating_map=lambda p: one_sphere(p, radius=2.0))
-    #TODO figure out operating space maps!
-    
-    # Initialize mass flow controller (MFC) list
-    #TODO set these!
+    K = 0.1
+    offset = 1.0
     K_mfcs = [10.0, 5.0, 2.0, 1.0]  # MFC gains
     tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants
     td_mfcs = [0.2, 0.1, 0.4, 0.3]  # MFC time delays
     y0 = [0.0, 0.0, 0.0]  # initial value
     
-    mfc_list = [MFC(lambda t, y, u: first_order_delay(t, y, u, tau, td),
-                    lambda y: first_order_output(y, K, td), y0)
+    # Initialize sensor list
+    self.sensor_list = [StaticSensor(model=lambda y: sim_functions.static_model(y, K, offset),
+                                     location=0.0),
+                        DynamicSensor(model=tf1, location=1.0)]
+    #TODO initialize others
+    #TODO figure out transfer functions!
+    
+    # Initilaize flame
+    self.flame = Flame(operating_map=lambda p: sim_functions.one_sphere(p, radius=2.0))
+    #TODO figure out operating space maps!
+    
+    # Initialize mass flow controller (MFC) list
+    mfc_list = [MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, tau, td),
+                    lambda y: sim_functions.first_order_output(y, K, td), y0)
                 for K, tau, td in zip(K_mfcs, tau_mfcs, td_mfcs)]
     # Initialize control law list
     #TODO figure this out!
@@ -150,10 +106,10 @@ class Flame():
     Constructor
     
     Args:
-      map (function) maps out the actual stable/unstable regions of the
-        system's operating space.
-      model (undecided) model relating some flame output to the current
-        operating point of the flame.
+      map (function): maps out the actual stable/unstable regions of the
+        system's operating space
+      model (undecided): model relating some flame output to the current
+        operating point of the flame
     """
     
     self.operating_map = operating_map
@@ -175,7 +131,7 @@ class Flame():
     Gets the flame state.
     
     Returns:
-      state (bool) True if flame, False if no flame
+      bool: True if flame, False if no flame
     """
     
     return self.state
@@ -185,11 +141,12 @@ class Flame():
     Updates the state of flame and outputs appropriate stuff.
     
     Args:
-      operating_point (list) current state of the MFCs coming from the
-        Controller.get_output() method.
+      operating_point (list): current state of the MFCs coming from the
+        Controller.get_output() method
     
     Returns:
-      flame_snapshot (undecided) I am not sure what this should be yet.
+      bool: True of flame, False if no flame
+      flame_snapshot (undecided): I am not sure what this should be yet
     """
     
     #TODO update the flame model and return some snapshot of the physical
@@ -200,6 +157,7 @@ class Flame():
       self.ignite()
     if self.state and not self.operating_map(operating_point):
       self.blowout()
+    return self.state
       
 class MFC():
   """Defines the mass flow controller object."""
@@ -221,17 +179,32 @@ class MFC():
     self.output_fcn = output_fcn
     
   def get_time(self):
-    """Return the internal time used by the MFC ODE."""
+    """
+    Get the internal time used by the MFC ODE.
+    
+    Returns:
+      double: simulation time of the ODE
+    """
     
     return self.ode.t
     
   def get_output(self):
-    """Return the current output of the MFC through its output function."""
+    """
+    Get the current output of the MFC through its output function.
+    
+    Returns:
+      double: ODE output from the ODE output function
+    """
     
     return self.output_fcn(self.ode.y)
   
   def get_state(self):
-    """Return the current internal state of the MFC ODE."""
+    """
+    Get the current internal state of the MFC ODE.
+    
+    Returns:
+      ndarray: internal state of the ODE model
+    """
     
     return self.ode.y
     
@@ -240,11 +213,11 @@ class MFC():
     Updates the output of the MFC step-by-step.
     
     Args:
-      input (double) controller input to the MFC ODE (volts).
-      t_step (double) time step used for simulation.
+      input (double): controller input to the MFC ODE (volts)
+      t_step (double): time step used for simulation
     
     Returns:
-      mass_flow (double) mass flow rate (LPM or something).
+      double: mass flow rate (LPM or something)
     """
     
     self.ode.set_f_params(input_val)
@@ -259,21 +232,21 @@ class StaticSensor(Instrument):
     Constructor
     
     Args:
-      model (function) describes output of sensor as function of input.
-      location (double) location of the sensor from the combustor.
+      model (function): describes output of sensor as function of input
+      location (double): location of the sensor from the combustor
     """
     
     self.model = model
     self.reading = 0.0
+    #TODO figure out how to make use of the location
     super(StaticSensor, self).__init__(location)  # parent keeps location
-    # should be able to access location with self.location!
     
   def get_output(self):
     """
     Get the output of the sensor.
     
     Returns:
-      reading (double) output of the sensor.
+      double: output of the sensor
     """
     
     return self.reading
@@ -283,10 +256,10 @@ class StaticSensor(Instrument):
     Update the output of the static sensor.
     
     Args:
-      in_value (double) state that the sensor is reading.
+      in_value (double): state that the sensor is reading
     
     Returns:
-      reading (double) output of the sensor.
+      double: output of the sensor
     """
     
     self.reading = self.model(in_value)
@@ -295,30 +268,38 @@ class StaticSensor(Instrument):
 class DynamicSensor(Instrument):
   """Defines the dynamic sensor object."""
   
-  def __init__(self, tf, location):
+  def __init__(self, model, location):
     """
     Constructor
     
     Args:
-      tf (undecided) transfer function defining the response of the sensor to stimulus.
-      location (double) location of the sensor from the combustor.
+      model (undecided): some model defining the response of the sensor to
+        stimulus
+      location (double): location of the sensor from the combustor
     """
     
-    self.tf = tf
+    #TODO maybe use an ODE to define the sensor model, like in MFC class?
+    self.model = model
     self.reading = 0.0
-    super(DynamicSensor, self).__init__(location)
+    #TODO figure out how to make use of the location
+    super(DynamicSensor, self).__init__(location)  # parent keeps location
   
   def get_output(self):
-    """Return the state of the sensor."""
+    """
+    Get the instant output state of the sensor.
+    
+    Returns:
+      double: single-value instant reading of the sensor
+    """
     
     return self.reading
   
-  def output_time_series(self):
+  def get_time_series(self):
     """Output the response of the sensor as a time series."""
     
     pass
   
-  def output_power_spectrum(self):
+  def get_power_spectrum(self):
     """Output the response of the sensor as a power spectrum."""
     
     pass
@@ -328,10 +309,15 @@ class DynamicSensor(Instrument):
     Update the response of the sensor.
     
     Args:
-      input I don't know what this should be yet.
-      t_step (double) time step for simulation.
+      in_value (double): state that the sensor is reading
+      t_step (double): time step for simulation
+    
+    Returns:
+      double: single-value instant reading of the sensor
     """
     
+#     self.reading = self.model(in_value, t_step)
+#     return self.reading
     pass
   
 class Controller():
@@ -345,11 +331,11 @@ class Controller():
     Constructor.
     
     Args:
-      mfc_list (list of MFC) MFC objects defining the mass flow controllers.
-      control_law_list (list of functions) control laws that apply to each MFC
+      mfc_list (list of MFC): MFC objects defining the mass flow controllers
+      control_law_list (list of functions): control laws that apply to each MFC
         in the mfc_list
-      t_step_ctrl (double) iteration rate for the control law. Should be longer
-        than the simulation time step.
+      t_step_ctrl (double): iteration rate for the control law. Should be
+        longer than the simulation time step.
     """
     
     self.t_step_ctrl = t_step_ctrl  # time step for updating the control law
@@ -366,7 +352,7 @@ class Controller():
     controlling.
     
     Returns:
-      output (list) of measurements from each controlled object
+      list, double: measurements from each controlled object
     """
     
     if isinstance(self.mfc_list, MFC):
@@ -375,41 +361,37 @@ class Controller():
       return [mfc.get_output() for mfc in self.mfc_list]  # multiple MFC case
   
   def get_time(self):
-    """Return the simulation time of the first MFC in mfc_list."""
+    """
+    Get the simulation time of the first MFC in mfc_list.
+    
+    Returns:
+      double: simulation time of the first MFC in mfc_list
+    """
     
     if isinstance(self.mfc_list, MFC):
       return self.mfc_list.get_time()  # single MFC case
     else:
       return self.mfc_list[0].get_time()  # multiple MFC case
-  
-  def control_law(self, mass_flow_des):
-    """
-    Determines the control effort given the desired state, the current state,
-    and the controller time step.
     
-    Args:
-      mass_flow_des (list, double) desired mass flow rates for MFCs (LPM)
-    """
-    
-    #TODO test for length of mass_flow_desired
-    self.u_ctrl = [ctrl_law(mfc.get_output(), ref) for ctrl_law, mfc, ref
-                   in zip(self.control_law_list, self.mfc_list, mass_flow_des)]
-
-    
-  def update(self, mass_flow_des, t_step, time):
+  def update(self, mass_flow_des, t_step):
     """
     Update the controller and its MFCs.
     
     Args:
-      mass_flow_des (double array) desired mass flow rates for MFCs (LPM)
-      t_step (double) time step used for simulation (seconds)
-      time (double) current simulation time (seconds)
+      mass_flow_des (double array): desired mass flow rates for MFCs (LPM)
+      t_step (double): time step used for simulation (seconds)
+      time (double): current simulation time (seconds)
+    
+    Returns:
+      bool: True if successful, False otherwise
     """
     
     # Update the control effort based on the current and desired state when the
     # simulation time reaches another controller period.
-    if time % self.t_step_ctrl < 1.0:
-      self.control_law(mass_flow_des)
+    if self.get_time() % self.t_step_ctrl < 1.0:
+      #TODO test for length of mass_flow_desired
+      self.u_ctrl = [ctrl_law(mfc.get_output(), ref) for ctrl_law, mfc, ref
+                   in zip(self.control_law_list, self.mfc_list, mass_flow_des)]
     
     # Update the MFC using the current control effort.
     for mfc, u in zip(self.mfc_list, self.u_ctrl):
