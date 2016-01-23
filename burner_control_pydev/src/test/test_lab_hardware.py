@@ -281,7 +281,7 @@ class TestLabHardware(unittest.TestCase):
       self.assertNotEqual(test_sensor.update(P_actual), expected,
                           "Measured pressure with noise equals value without noise. Noise may not be working.")
       self.assertAlmostEqual(test_sensor.get_output(), expected,
-                             delta=3*std,
+                             delta=4*std,
                              msg="Stored sensor state >3*std away from expected state.")
     
     
