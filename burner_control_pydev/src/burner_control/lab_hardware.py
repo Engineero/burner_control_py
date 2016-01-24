@@ -19,7 +19,7 @@ class Instrument():
     Constructor.
     
     Args:
-      location (double): location of the instrument from the combustor
+      location (float): location of the instrument from the combustor
     """
     
     self.location = location
@@ -29,7 +29,7 @@ class Instrument():
     Gets the location property of the instrument.
     
     Returns:
-      double: location of the instrument from the combustor
+      float: location of the instrument from the combustor
     """
 
     return self.location
@@ -46,8 +46,8 @@ class Combustor():
     the atmospheric pressure, and gets everything ready to go (theoretically).
     
     Args:
-      p_atm (double): atmospheric pressure in psi
-      t_step (double): time step for system simulation
+      p_atm (float): atmospheric pressure in psi
+      t_step (float): time step for system simulation
     '''
     
     # Initialize constants
@@ -171,7 +171,7 @@ class MFC():
       ode_fcn (function) ODE that governs the dynamics of the system.
       output_fcn (function) function that converts state from ODE into
         meaningful system output, i.e. measurement function
-      y0 (double array) initial state of the ODE.
+      y0 (float array) initial state of the ODE.
     """
     
     self.ode = integrate.ode(ode_fcn)
@@ -184,7 +184,7 @@ class MFC():
     Get the internal time used by the MFC ODE.
     
     Returns:
-      double: simulation time of the ODE
+      float: simulation time of the ODE
     """
     
     return self.ode.t
@@ -194,7 +194,7 @@ class MFC():
     Get the current output of the MFC through its output function.
     
     Returns:
-      double: ODE output from the ODE output function
+      float: ODE output from the ODE output function
     """
     
     return self.output_fcn(self.ode.y)
@@ -214,11 +214,11 @@ class MFC():
     Updates the output of the MFC step-by-step.
     
     Args:
-      input (double): controller input to the MFC ODE (volts)
-      t_step (double): time step used for simulation
+      input (float): controller input to the MFC ODE (volts)
+      t_step (float): time step used for simulation
     
     Returns:
-      double: mass flow rate (LPM or something)
+      float: mass flow rate (LPM or something)
     """
     
     self.ode.set_f_params(input_val)
@@ -234,7 +234,7 @@ class StaticSensor(Instrument):
     
     Args:
       model (function): describes output of sensor as function of input
-      location (double): location of the sensor from the combustor
+      location (float): location of the sensor from the combustor
     """
     
     self.model = model
@@ -247,7 +247,7 @@ class StaticSensor(Instrument):
     Get the output of the sensor.
     
     Returns:
-      double: output of the sensor
+      float: output of the sensor
     """
     
     return self.reading
@@ -257,10 +257,10 @@ class StaticSensor(Instrument):
     Update the output of the static sensor.
     
     Args:
-      in_value (double): state that the sensor is reading
+      in_value (float): state that the sensor is reading
     
     Returns:
-      double: output of the sensor
+      float: output of the sensor
     """
     
     self.reading = self.model(in_value)
@@ -276,7 +276,7 @@ class DynamicSensor(Instrument):
     Args:
       model (undecided): some model defining the response of the sensor to
         stimulus
-      location (double): location of the sensor from the combustor
+      location (float): location of the sensor from the combustor
     """
     
     #TODO maybe use an ODE to define the sensor model, like in MFC class?
@@ -290,7 +290,7 @@ class DynamicSensor(Instrument):
     Get the instant output state of the sensor.
     
     Returns:
-      double: single-value instant reading of the sensor
+      float: single-value instant reading of the sensor
     """
     
     return self.reading
@@ -310,11 +310,11 @@ class DynamicSensor(Instrument):
     Update the response of the sensor.
     
     Args:
-      in_value (double): state that the sensor is reading
-      t_step (double): time step for simulation
+      in_value (float): state that the sensor is reading
+      t_step (float): time step for simulation
     
     Returns:
-      double: single-value instant reading of the sensor
+      float: single-value instant reading of the sensor
     """
     
 #     self.reading = self.model(in_value, t_step)
@@ -335,7 +335,7 @@ class Controller():
       mfc_list (list of MFC): MFC objects defining the mass flow controllers
       control_law_list (list of functions): control laws that apply to each MFC
         in the mfc_list
-      t_step_ctrl (double): iteration rate for the control law. Should be
+      t_step_ctrl (float): iteration rate for the control law. Should be
         longer than the simulation time step.
     """
     
@@ -353,7 +353,7 @@ class Controller():
     controlling.
     
     Returns:
-      list, double: measurements from each controlled object
+      list, float: measurements from each controlled object
     """
     
     if isinstance(self.mfc_list, MFC):
@@ -366,7 +366,7 @@ class Controller():
     Get the simulation time of the first MFC in mfc_list.
     
     Returns:
-      double: simulation time of the first MFC in mfc_list
+      float: simulation time of the first MFC in mfc_list
     """
     
     if isinstance(self.mfc_list, MFC):
@@ -379,9 +379,9 @@ class Controller():
     Update the controller and its MFCs.
     
     Args:
-      mass_flow_des (double array): desired mass flow rates for MFCs (LPM)
-      t_step (double): time step used for simulation (seconds)
-      time (double): current simulation time (seconds)
+      mass_flow_des (float array): desired mass flow rates for MFCs (LPM)
+      t_step (float): time step used for simulation (seconds)
+      time (float): current simulation time (seconds)
     
     Returns:
       bool: True if successful, False otherwise
@@ -410,9 +410,13 @@ class KalmanFilter():
     """
     Constructor.
     
-    Kwargs:
-      Q (double, default=1e-5): estimate of process variance
-      R (double, default=1e-3): estimate of measurement variance
+    Args:
+      A (ndarray): state update matrix, x_k+1 = A*x_k + B*u_k
+      B (ndarray): input matrix, x_k+1 = A*x_k + B*u_k
+      C (ndarray): measurement update matrix, y_k = C*x_k + D*u_k
+      Q (ndarray): estimate of process variance
+      R (ndarray or float): estimate of measurement variance
+      P (ndarray): initial estimate of error covariance
     """
     
     self.xhat_minus = np.zeros(A.shape[1])
@@ -425,15 +429,35 @@ class KalmanFilter():
     self.B = B
     self.C = C
   
+  def get_output(self):
+    """
+    Get the current output (prediction) of the Kalman filter.
+    
+    Returns:
+      ndarray: KF-predicted state of the observed system
+    """
+    
+    return self.xhat
+  
+  def get_err_cov(self):
+    """
+    Get the estimated error covariance matrix of the Kalman filter.
+    
+    Returns:
+      ndarray: estimated error covariance matrix, P
+    """
+    
+    return self.P
+  
   def update(self, y, u):
     """
     Updates the state of the Kalman filter.
     
     Args:
-      z (double) update measurement
+      z (ndarray or float): update measurement
     
     Returns:
-      array, double: [xhat, P], current state and error estimate
+      ndarray: xhat, current state estimate
     """
     
     #TODO implement an actual KF from papers
@@ -448,5 +472,5 @@ class KalmanFilter():
     K = P_apri.dot(self.C.T).dot(inv)
     self.xhat = x_apri + K.dot(y - self.C.dot(x_apri))
     self.P = (np.identity(self.P.shape) - K.dot(self.C)).dot(P_apri)
-    return [self.xhat, self.P]
+    return self.xhat, self.P
     

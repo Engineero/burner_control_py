@@ -13,8 +13,8 @@ def one_sphere(point, radius=1.0):
     Checks whether points are inside or outside of a hypersphere.
     
     Args:
-        point (list, double): list representing test condition
-        radius (double, default=1.0): radius of hypersphere to test
+        point (list, float): list representing test condition
+        radius (float, default=1.0): radius of hypersphere to test
     
     Returns:
         int: 1 if point is outside of the sphere (good), 0 if point is inside
@@ -39,14 +39,14 @@ def first_order_delay(t, y, u, A, B):
   flow controllers.
   
   Args:
-    t (double): time input needed by ODE solver
-    y (np.array): ODE state [y, y_dot, y_ddot]
-    u (double): input to the single-input ode
-    A (np.array): state transition matrix for linear system
-    B (np.array): input matrix for the linear system
+    t (float): time input needed by ODE solver
+    y (ndarray): ODE state [y, y_dot, y_ddot]
+    u (float): input to the single-input ode
+    A (ndarray): state transition matrix for linear system
+    B (ndarray): input matrix for the linear system
     
   Returns:
-    np.array: [y_dot, y_ddot, y_dddot], time-derivatives of state vector
+    ndarray: [y_dot, y_ddot, y_dddot], time-derivatives of state vector
       evaluated using a second-order Pade approximation of the time-delayed
       first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
   """
@@ -65,11 +65,11 @@ def first_order_output(y, C):
   1st-order ODE with time delay. Used to get pressure from the state equation.
   
   Args:
-    y (np.array): current state of the ODE
-    C (np.array): measurement matrix for the linear system
+    y (ndarray): current state of the ODE
+    C (ndarray): measurement matrix for the linear system
   
   Returns:
-    double: pressure, approximation of first-order ODE response with time delay
+    float: pressure, approximation of first-order ODE response with time delay
       P = C*y
   """
   
@@ -81,17 +81,17 @@ def static_model(y, K, offset, mean=0, std=0):
   Models the static pressure measurement sensor.
   
   Args:
-    y (double): input to the static sensor
-    K (double): static gain of the sensor
-    offset (double): constant offset of the sensor
+    y (float): input to the static sensor
+    K (float): static gain of the sensor
+    offset (float): constant offset of the sensor
   
   Kwargs:
-    mean (double, default=0): mean of Gaussian white noise
-    std (double, default=0): standard deviation of Gaussian white noise. Set
+    mean (float, default=0): mean of Gaussian white noise
+    std (float, default=0): standard deviation of Gaussian white noise. Set
       std = 0 for no noise.
     
   Returns:
-    double: static reading = K*y + offset + noise
+    float: static reading = K*y + offset + noise
   """
   
   if std == 0:

@@ -306,12 +306,25 @@ class TestLabHardware(unittest.TestCase):
     R = 1e-2  # measurement noise covariance
     P = Q  # initial estimate of error covariance
     
-    # Initialize the KF
+    # Initialize the KF and system ODE
     test_KF = lab_hardware.KalmanFilter(A, B, C, Q, R, P)
     
     # Test initialization
     self.assertIsInstance(test_KF, lab_hardware.KalmanFilter,
                           "Kalman filter not initialized to KF class.")
+    self.assertListEqual(test_KF.get_output().tolist(),
+                         np.zeros(A.shape[1]).tolist(),
+                     "Kalman filter initial state does not match expected value.")
+    self.assertListEqual(test_KF.get_err_cov().tolist(), P.tolist(),
+                     "Kalman filter initial estimated error covariance does not match expected.")
+    
+    # Test methods
+    self.assertIsInstance(test_KF.get_output(), np.ndarray,
+                          "Kalman filter get_output method does not return expected data type.")
+    self.assertIsInstance(test_KF.get_err_cov(), np.ndarray,
+                          "Kalman filter get_err_cov method does not return expected data type")
+    self.assertIsInstance(test_KF.update([0], [0]), np.ndarray,
+                          "Kalman filter update method does not return expected data type.")
 
     
 if __name__ == "__main__":
