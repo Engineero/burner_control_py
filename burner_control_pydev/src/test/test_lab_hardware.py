@@ -6,6 +6,7 @@ Created on Jan 8, 2016
 
 import unittest
 import matplotlib.pyplot as plt
+import numpy as np
 from burner_control import lab_hardware, sim_functions
 
 plot_flag = False  # True if we want some tests to plot results
@@ -62,11 +63,17 @@ class TestLabHardware(unittest.TestCase):
     input_val = 1.0
     response = []
     
+    # Define model matrices
+    den = tau*td**2
+    A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
+    B = np.array([[0], [0], [12/den]])
+    C = np.array([K, -K*td/2, K*td**2/12])
+    
     # Initialize the MFCs
     test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
                                  lambda x: x[0], y0_1)
-    test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, tau, td),
-                                 lambda y: sim_functions.first_order_output(y, K, td),
+    test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
+                                 lambda y: sim_functions.first_order_output(y, C),
                                  y0_2)
     
     # Run initialization tests on the MFC.
@@ -74,8 +81,8 @@ class TestLabHardware(unittest.TestCase):
                           "Failure to initialize MFC1 to MFC class.")
     self.assertIsInstance(test_mfc1.get_output(), float,
                           "State of MFC1 is not returned as a float")
-    self.assertIsInstance(test_mfc2.get_output(), float,
-                          "State of MFC2 is not returned as float")
+    self.assertIsInstance(test_mfc2.get_output(), np.ndarray,
+                          "State of MFC2 is not returned as np.ndarray")
     self.assertEqual(test_mfc1.get_output(), y0_1[0],
                      "MFC1 state failed to initialize to y0_1")
     self.assertEqual(test_mfc2.get_output(), y0_2[0],
@@ -106,7 +113,7 @@ class TestLabHardware(unittest.TestCase):
     # Test the second MFC in simulation
     self.assertTrue(test_mfc2.get_output() != y0_2[0],
                     "MFC state failed to update from y0")
-    self.assertAlmostEqual(test_mfc2.get_output(), K, places=2,
+    self.assertAlmostEqual(test_mfc2.get_output()[0], K, places=2,
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(test_mfc2.get_time(), time,
                      "MFC2 simulation time out of sync with global simulation time")
@@ -283,7 +290,29 @@ class TestLabHardware(unittest.TestCase):
       self.assertAlmostEqual(test_sensor.get_output(), expected,
                              delta=4*std,
                              msg="Stored sensor state >3*std away from expected state.")
+
+  def test_kalman_filter_class(self):
+    """Tests for the lab_hardware.KalmanFilter class."""
     
+    # Define constants
+    K = 10.0
+    tau = 1.0
+    td = 0.2
+    den = tau*td**2
+    A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
+    B = np.array([[0], [0], [12/den]])
+    C = np.array([K, -K*td/2, K*td**2/12])
+    Q = 1e-5*np.identity(len(B))  # process noise covariance
+    R = 1e-2  # measurement noise covariance
+    P = Q  # initial estimate of error covariance
+    
+    # Initialize the KF
+    test_KF = lab_hardware.KalmanFilter(A, B, C, Q, R, P)
+    
+    # Test initialization
+    self.assertIsInstance(test_KF, lab_hardware.KalmanFilter,
+                          "Kalman filter not initialized to KF class.")
+
     
 if __name__ == "__main__":
   #import sys;sys.argv = ['', 'Test.testLabHardware']

@@ -33,46 +33,48 @@ def one_sphere(point, radius=1.0):
     else:
       return 1 if sum([num**2 for num in point]) > radius**2 else 0
   
-def first_order_delay(t, y, u, tau, delay):
+def first_order_delay(t, y, u, A, B):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.
   
   Args:
     t (double): time input needed by ODE solver
-    y (double array): ODE state [y, y_dot, y_ddot]
-    u (double): input to the ode
-    tau (double): time constant of the first-order ode with delay
-    delay (double): time delay term
+    y (np.array): ODE state [y, y_dot, y_ddot]
+    u (double): input to the single-input ode
+    A (np.array): state transition matrix for linear system
+    B (np.array): input matrix for the linear system
     
   Returns:
-    list: [y_dot, y_ddot, y_dddot], time-derivatives of state vector evaluated
-      using a second-order Pade approximation of the time-delayed first-order
-      ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
+    np.array: [y_dot, y_ddot, y_dddot], time-derivatives of state vector
+      evaluated using a second-order Pade approximation of the time-delayed
+      first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
   """
   
-  den = tau*delay**2
-  # dydt0 = y[1]
-  # dydt1 = y[2]
-  dydt2 = -12*y[0]/den - y[1]*(6*delay + 12*tau)/den \
-          - y[2]*(6*tau + delay)/tau/delay + 12*u/den
-  return [y[1], y[2], dydt2]  # dydt array
+#   den = tau*delay**2
+#   # dydt0 = y[1]
+#   # dydt1 = y[2]
+#   dydt2 = -12*y[0]/den - y[1]*(6*delay + 12*tau)/den \
+#           - y[2]*(6*tau + delay)/tau/delay + 12*u/den
+#   return [y[1], y[2], dydt2]  # dydt array
+  return A.dot(y.reshape(len(y), 1)) + B.dot(u)
 
-def first_order_output(y, K, delay):
+def first_order_output(y, C):
   """
   Defines the output function for the 2nd-order Pade approximation of a
   1st-order ODE with time delay. Used to get pressure from the state equation.
   
   Args:
-    y (list, double): current state of the ODE
-    K (double): gain of the first-order ODE
-    delay (double): time delay term
+    y (np.array): current state of the ODE
+    C (np.array): measurement matrix for the linear system
   
   Returns:
     double: pressure, approximation of first-order ODE response with time delay
+      P = C*y
   """
   
-  return y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12
+#   return y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12
+  return C.dot(y.reshape(len(y), 1))
 
 def static_model(y, K, offset, mean=0, std=0):
   """

@@ -7,6 +7,7 @@ Created on Jan 22, 2016
 import unittest
 import itertools
 from scipy import integrate
+import numpy as np
 from burner_control import sim_functions
 
 
@@ -62,9 +63,9 @@ class Test(unittest.TestCase):
     """Tests for first_order_delay function."""
     
     # Define constants
-    y0 = [0]*3
+    y0 = [0.5]*3
     t_step = 0.01
-    tau_list = [0.1, 0.3, 1, 3, 10]
+    tau_list = [0.1, 0.3, 1]
     delay_list = [0.1, 0.3, 1]
     input_list = [0, 1, -1]
     param_list = set(itertools.chain(*[zip(x, delay_list) for x in
@@ -83,12 +84,16 @@ class Test(unittest.TestCase):
     # Test response of the ODE
     print("Testing ODE", end="", flush=True)
     for tau, delay in param_list:
+      den = tau*delay**2
+      A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
+      B = np.array([[0], [0], [12/den]])
       for u in input_list:
         test_ode.set_initial_value(y0, 0)
         time = 0
         print(".", end="", flush=True)
         while test_ode.successful() and time < 10*tau+delay:
-          test_ode.set_f_params(*[u, tau, delay])
+          # test_ode.set_f_params(*[u, tau, delay])
+          test_ode.set_f_params(*[u, A, B])
           test_ode.integrate(test_ode.t + t_step)
           time += t_step
 #           if time == 0 or test_ode.t % 1.0 < t_step:
@@ -96,7 +101,7 @@ class Test(unittest.TestCase):
           
         self.assertEqual(test_ode.t, time,
                          "ODE simulation time does not match global simulation time.")
-        self.assertAlmostEqual(test_ode.y[0], u, places=2,
+        self.assertAlmostEqual(test_ode.y[0], u, places=1,
                                msg="ODE final value not equal to expected value.")
     print("Done!")
   
@@ -113,8 +118,9 @@ class Test(unittest.TestCase):
     
     # Test response of the output function
     for K, delay in param_list:
+      C = np.array([K, -K*delay/2, K*delay**2/12])
       for y in y_list:
-        self.assertEqual(sim_functions.first_order_output(y, K, delay),
+        self.assertEqual(sim_functions.first_order_output(np.array(y), C),
                          y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12,
                          "Unexpected output function output for y={}, K={}, delay={}".format(y, K, delay))
     

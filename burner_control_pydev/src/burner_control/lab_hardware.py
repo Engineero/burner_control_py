@@ -5,6 +5,7 @@ Created on Jan 7, 2016
 '''
 
 from scipy import integrate
+import numpy as np
 from burner_control import sim_functions
 
 
@@ -399,3 +400,53 @@ class Controller():
         return False
     
     return True
+
+class KalmanFilter():
+  """
+  Defines a Kalman filter class for reducing noise in measurements.
+  """
+  
+  def __init__(self, A, B, C, Q, R, P):
+    """
+    Constructor.
+    
+    Kwargs:
+      Q (double, default=1e-5): estimate of process variance
+      R (double, default=1e-3): estimate of measurement variance
+    """
+    
+    self.xhat_minus = np.zeros(A.shape[1])
+    self.xhat = self.xhat_minus
+    self.P_minus = P
+    self.P = P
+    self.Q = Q
+    self.R = R
+    self.A = A
+    self.B = B
+    self.C = C
+  
+  def update(self, y, u):
+    """
+    Updates the state of the Kalman filter.
+    
+    Args:
+      z (double) update measurement
+    
+    Returns:
+      array, double: [xhat, P], current state and error estimate
+    """
+    
+    #TODO implement an actual KF from papers
+    # Store previous values
+    self.xhat_minus = self.xhat
+    self.P_minus = self.P
+    
+    # Measurement update
+    x_apri = self.A.dot(self.xhat_minus) + self.B.dot(u)
+    P_apri = self.A.dot(self.P_minus).dot(self.A.T) + self.Q
+    inv = np.linalg.inv(self.C.dot(P_apri).dot(self.C.T) + self.R)
+    K = P_apri.dot(self.C.T).dot(inv)
+    self.xhat = x_apri + K.dot(y - self.C.dot(x_apri))
+    self.P = (np.identity(self.P.shape) - K.dot(self.C)).dot(P_apri)
+    return [self.xhat, self.P]
+    
