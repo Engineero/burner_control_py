@@ -63,11 +63,11 @@ class Test(unittest.TestCase):
     """Tests for first_order_delay function."""
     
     # Define constants
-    y0 = [0.5]*3
+    y0 = np.reshape([0.5]*3, (3, 1))
     t_step = 0.01
     tau_list = [0.1, 0.3, 1]
     delay_list = [0.1, 0.3, 1]
-    input_list = [0, 1, -1]
+    input_list = [0., 1., -1.]
     param_list = set(itertools.chain(*[zip(x, delay_list) for x in
                                        itertools.permutations(tau_list, len(delay_list))]))
     
@@ -77,7 +77,7 @@ class Test(unittest.TestCase):
     test_ode.set_initial_value(y0)
     
     # Test initialization
-    self.assertListEqual(test_ode.y.tolist(), y0,
+    self.assertListEqual(test_ode.y.tolist(), y0.tolist(),
                          "ODE not initialized to correct state.")
     self.assertEqual(test_ode.t, 0, "ODE simulation time not initialized to 0.")
     
@@ -101,8 +101,9 @@ class Test(unittest.TestCase):
           
         self.assertEqual(test_ode.t, time,
                          "ODE simulation time does not match global simulation time.")
-        self.assertAlmostEqual(test_ode.y[0], u, places=1,
+        self.assertAlmostEqual(test_ode.y.flatten().tolist()[0], u, places=1,
                                msg="ODE final value not equal to expected value.")
+        self.assertEqual(test_ode.y.shape, (3, 1), "ODE simulation state not the correct shape")
     print("Done!")
   
   def test_first_order_output(self):
@@ -118,9 +119,9 @@ class Test(unittest.TestCase):
     
     # Test response of the output function
     for K, delay in param_list:
-      C = np.array([K, -K*delay/2, K*delay**2/12])
+      C = np.array([[K, -K*delay/2, K*delay**2/12]])
       for y in y_list:
-        self.assertEqual(sim_functions.first_order_output(np.array(y), C),
+        self.assertEqual(sim_functions.first_order_output(np.array(y), C)[0],
                          y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12,
                          "Unexpected output function output for y={}, K={}, delay={}".format(y, K, delay))
     

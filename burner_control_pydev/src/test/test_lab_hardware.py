@@ -299,17 +299,17 @@ class TestLabHardware(unittest.TestCase):
     tau = 1.0
     td = 0.2
     den = tau*td**2
+    Ks = 2.0
+    offset = 0
+    mean = 0
+    std = 1
     A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
     B = np.array([[0], [0], [12/den]])
     C = np.array([[K, -K*td/2, K*td**2/12]])
     Q = 1e-5*np.identity(A.shape[0])  # process noise covariance
-    R = 1e-2  # measurement noise covariance
+    R = std  # measurement noise covariance
     P = Q  # initial estimate of error covariance
     x0 = [0]*A.shape[0]
-    Ks = 2.0
-    offset = 0
-    mean = 0
-    std = 0.1
     stop_time = 10
     input_val = 1
     t_step = 0.01
@@ -318,10 +318,12 @@ class TestLabHardware(unittest.TestCase):
     response = []
     
     # Initialize the KF and system ODE
-    test_KF = lab_hardware.KalmanFilter(A, B, C, Q, R, P)
+    test_KF = lab_hardware.KalmanFilter(A, B, Ks*C, Q, R, P)
     test_mfc = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
-                                lambda y: sim_functions.first_order_output(y, C), x0)
-    test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, Ks, offset, mean, std), 1.0)
+                                lambda y: sim_functions.first_order_output(y, C),
+                                x0)
+    test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, Ks, offset, mean, std),
+                                            1.0)
     
     # Test initialization
     self.assertIsInstance(test_KF, lab_hardware.KalmanFilter,
@@ -347,14 +349,18 @@ class TestLabHardware(unittest.TestCase):
         t_list.append(time)
         reading = test_sensor.update(test_mfc.get_output())
         KF_value = test_KF.update(reading, input_val)
-        response.append([test_mfc.get_output(), reading, KF_value])
+        response.append([test_mfc.get_output()[0][0], reading[0][0],
+                         C.dot(KF_value)[0][0]])
         if time == 0.0 or test_mfc.get_time() % 1.0 < t_step:
-          print("{}\t{}\t{}\t{}".format(test_mfc.get_time(),
-                                        test_mfc.get_output(), reading,
-                                        KF_value))
+          print("{}\t{}".format(test_mfc.get_time(),
+                                response[-1]))
         time += t_step
       else:
         break
+    
+    # Test the result of running the system with the KF
+    self.assertAlmostEqual(response[-1][0], K*input_val, delta=3*std,
+                           msg="Filtered response value not within 3*std of expected value.")
     
     # Plot the response of the MFCs
     if plot_flag:

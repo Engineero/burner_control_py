@@ -460,7 +460,7 @@ class KalmanFilter():
       ndarray: xhat, current state estimate
     """
     
-    #TODO implement an actual KF from papers
+    #TODO maybe implement KF without storing _minus states or _apri states
     # Store previous values
     self.xhat_minus = self.xhat
     self.P_minus = self.P
@@ -470,7 +470,7 @@ class KalmanFilter():
     P_apri = self.A.dot(self.P_minus).dot(self.A.T) + self.Q
     inv = self.C.dot(P_apri).dot(self.C.T) + self.R
     if inv.shape != ():
-      inv = np.linalg.inv(self.C.dot(P_apri).dot(self.C.T) + self.R)
+      inv = np.linalg.inv(inv)
     else:
       inv = 1/inv
     K = P_apri.dot(self.C.T).dot(inv)
