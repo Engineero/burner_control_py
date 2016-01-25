@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from burner_control import lab_hardware, sim_functions
 
-plot_flag = False  # True if we want some tests to plot results
+plot_flag = True  # True if we want some tests to plot results
 
 
 def test_ode(t, y, u, K, tau):
@@ -120,7 +120,7 @@ class TestLabHardware(unittest.TestCase):
     self.assertAlmostEqual(test_mfc2.get_time(), stop_time, delta=t_step,
                            msg="MFC2 simulation time not equal to stop time.")
     
-      # Plot the response of the MFCs
+    # Plot the response of the MFCs
     if plot_flag:
       plt.plot(t_list, response)
       plt.grid(True)
@@ -301,30 +301,70 @@ class TestLabHardware(unittest.TestCase):
     den = tau*td**2
     A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
     B = np.array([[0], [0], [12/den]])
-    C = np.array([K, -K*td/2, K*td**2/12])
-    Q = 1e-5*np.identity(len(B))  # process noise covariance
+    C = np.array([[K, -K*td/2, K*td**2/12]])
+    Q = 1e-5*np.identity(A.shape[0])  # process noise covariance
     R = 1e-2  # measurement noise covariance
     P = Q  # initial estimate of error covariance
+    x0 = [0]*A.shape[0]
+    Ks = 2.0
+    offset = 0
+    mean = 0
+    std = 0.1
+    stop_time = 10
+    input_val = 1
+    t_step = 0.01
+    t_list = []
+    time = 0
+    response = []
     
     # Initialize the KF and system ODE
     test_KF = lab_hardware.KalmanFilter(A, B, C, Q, R, P)
+    test_mfc = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
+                                lambda y: sim_functions.first_order_output(y, C), x0)
+    test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, Ks, offset, mean, std), 1.0)
     
     # Test initialization
     self.assertIsInstance(test_KF, lab_hardware.KalmanFilter,
                           "Kalman filter not initialized to KF class.")
     self.assertListEqual(test_KF.get_output().tolist(),
-                         np.zeros(A.shape[1]).tolist(),
+                         np.zeros((A.shape[1], 1)).tolist(),
                      "Kalman filter initial state does not match expected value.")
     self.assertListEqual(test_KF.get_err_cov().tolist(), P.tolist(),
                      "Kalman filter initial estimated error covariance does not match expected.")
     
-    # Test methods
+    # Test method return types
     self.assertIsInstance(test_KF.get_output(), np.ndarray,
                           "Kalman filter get_output method does not return expected data type.")
     self.assertIsInstance(test_KF.get_err_cov(), np.ndarray,
                           "Kalman filter get_err_cov method does not return expected data type")
-    self.assertIsInstance(test_KF.update([0], [0]), np.ndarray,
-                          "Kalman filter update method does not return expected data type.")
+#     self.assertIsInstance(test_KF.update([0], [0]), np.ndarray,
+#                           "Kalman filter update method does not return expected data type.")
+    
+    # Run the MFC a bit with sensor
+    print("Time\tMFC output\tMFC output with noise\tKalman filter output")
+    while test_mfc.get_time() < stop_time:
+      if test_mfc.update(input_val, t_step):
+        t_list.append(time)
+        reading = test_sensor.update(test_mfc.get_output())
+        KF_value = test_KF.update(reading, input_val)
+        response.append([test_mfc.get_output(), reading, KF_value])
+        if time == 0.0 or test_mfc.get_time() % 1.0 < t_step:
+          print("{}\t{}\t{}\t{}".format(test_mfc.get_time(),
+                                        test_mfc.get_output(), reading,
+                                        KF_value))
+        time += t_step
+      else:
+        break
+    
+    # Plot the response of the MFCs
+    if plot_flag:
+      plt.plot(t_list, response)
+      plt.grid(True)
+      plt.xlabel("Time (seconds)")
+      plt.ylabel("MFC Response (LPM)")
+      plt.title("Unit Step Response of First-Order MFC Simulation with Noise and Kalman Filter")
+      plt.legend(["Pade Approx. Sys.", "With Noise", "Kalman-Filtered"])
+      plt.show()  # called at end to prevent plot from automatically closing
 
     
 if __name__ == "__main__":

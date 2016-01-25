@@ -419,7 +419,7 @@ class KalmanFilter():
       P (ndarray): initial estimate of error covariance
     """
     
-    self.xhat_minus = np.zeros(A.shape[1])
+    self.xhat_minus = np.zeros((A.shape[1], 1))
     self.xhat = self.xhat_minus
     self.P_minus = P
     self.P = P
@@ -468,9 +468,13 @@ class KalmanFilter():
     # Measurement update
     x_apri = self.A.dot(self.xhat_minus) + self.B.dot(u)
     P_apri = self.A.dot(self.P_minus).dot(self.A.T) + self.Q
-    inv = np.linalg.inv(self.C.dot(P_apri).dot(self.C.T) + self.R)
+    inv = self.C.dot(P_apri).dot(self.C.T) + self.R
+    if inv.shape != ():
+      inv = np.linalg.inv(self.C.dot(P_apri).dot(self.C.T) + self.R)
+    else:
+      inv = 1/inv
     K = P_apri.dot(self.C.T).dot(inv)
     self.xhat = x_apri + K.dot(y - self.C.dot(x_apri))
-    self.P = (np.identity(self.P.shape) - K.dot(self.C)).dot(P_apri)
-    return self.xhat, self.P
+    self.P = (np.identity(self.P.shape[0]) - K.dot(self.C)).dot(P_apri)
+    return self.xhat
     
