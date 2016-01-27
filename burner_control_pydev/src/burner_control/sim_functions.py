@@ -51,15 +51,13 @@ def first_order_delay(t, y, u, A, B):
       first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
   """
   
-#   den = tau*delay**2
-#   # dydt0 = y[1]
-#   # dydt1 = y[2]
-#   dydt2 = -12*y[0]/den - y[1]*(6*delay + 12*tau)/den \
-#           - y[2]*(6*tau + delay)/tau/delay + 12*u/den
-#   return [y[1], y[2], dydt2]  # dydt array
+  #TODO add an option for noise to this model:
+  # A.dot(y.reshape(len(y), 1)) + B.dot(u) + N.dot(np.random.normal(mean, std))
+  # maybe use np.random.normal(mean, std, (len(y), 1)) to return an array of
+  # noise, then define "N" with the appropriate dimensions.
   return A.dot(y.reshape(len(y), 1)) + B.dot(u)
 
-def first_order_output(y, C):
+def first_order_output(y, C, mean=0, std=0):
   """
   Defines the output function for the 2nd-order Pade approximation of a
   1st-order ODE with time delay. Used to get pressure from the state equation.
@@ -68,13 +66,22 @@ def first_order_output(y, C):
     y (ndarray): current state of the ODE
     C (ndarray): measurement matrix for the linear system
   
+  Kwargs:
+    mean (float, default=0): mean of Gaussian white measurement noise
+    std (float, default=0): standard deviation of Gaussian white noise. Set
+      std = 0 for no noise.
+  
   Returns:
     float: pressure, approximation of first-order ODE response with time delay
       P = C*y
   """
   
 #   return y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12
-  return C.dot(y.reshape(len(y), 1))
+  if std == 0:
+    noise = 0
+  else:
+    noise = np.random.normal(mean, std)
+  return C.dot(y.reshape(len(y), 1)) + noise
 
 def static_model(y, K, offset, mean=0, std=0):
   """
