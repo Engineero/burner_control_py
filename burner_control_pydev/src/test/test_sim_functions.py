@@ -162,6 +162,35 @@ class Test(unittest.TestCase):
       sim_functions.static_model(1, [1, 2], 2)
       sim_functions.static_model(1, 2, [1, 2])
 
+  def test_make_lqr_law(self):
+    """Tests for make_lqr_law function."""
+    
+    # Define constants
+    tau_list = [0.3, 1]
+    delay_list = [0.1, 0.3]
+    K_list = [0.5, -2]
+    param_list = set(itertools.chain(*[zip(x, y, K_list) for x in
+                                       itertools.permutations(tau_list, len(K_list))
+                                       for y in itertools.permutations(delay_list, len(K_list))]))
+    Q = np.array([[100, 0, 0], [0, 1, 0], [0, 0, 1]])  # state error weight
+    R = np.array([[1]])  # control effort weight
+    
+    for tau, delay, K in param_list:
+      den = tau*delay**2
+      A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
+      B = np.array([[0], [0], [12/den]])
+      
+      # Create control law
+      K_lqr = sim_functions.make_lqr_law(A, B, Q, R)
+    
+      # Test return type
+      self.assertIsInstance(K_lqr, np.ndarray,
+                            "LQR law not returned as ndarray.")
+      
+      # Test return dimensions
+      self.assertTupleEqual(K_lqr.shape, (1, 3),
+                       "LQR law not the correct shape: {}, expected (1, 3).".format(K_lqr.shape))
+  
 
 if __name__ == "__main__":
   #import sys;sys.argv = ['', 'Test.testName']

@@ -5,6 +5,7 @@ Created on Jan 22, 2016
 '''
 
 import numpy as np
+import scipy.linalg
 import numbers
 
 
@@ -99,3 +100,31 @@ def static_model(y, K, offset, mean=0, std=0):
   else:
     noise = np.random.normal(mean, std)
   return K*y + offset + noise
+
+def make_lqr_law(A, B, Q, R):
+  """
+  Generates a linear quadratic regulator (LQR) control law and returns the
+  controller's gain matrix.
+  
+  Args:
+    A (ndarray): state transition matrix for linear system
+    B (ndarray): input matrix for the linear system
+    Q (ndarray): state error weighing matrix
+    R (ndarray): control effort weighing matrix
+  
+  Returns:
+    ndarray: LQR control gain matrix, K: u = -K*x
+    ndarray: discrete Ricatti matrix P
+    ndarray: eigen-values of the system A - B*K
+  """
+  
+  # Solve the discrete-time Ricatti equation
+  P = np.array(scipy.linalg.solve_discrete_are(A, B, Q, R))
+  print("Ricatti matrix P=\n{}".format(P))
+  
+  # Compute the LQR gain
+  K = np.array(scipy.linalg.inv(B.T*P*B + R)*(B.T*P*A))
+  print("LQR gain K=\n{}".format(K))
+  eigen_values, eigen_vectors = scipy.linalg.eig(A - B*K)
+  
+  return K, P, eigen_values
