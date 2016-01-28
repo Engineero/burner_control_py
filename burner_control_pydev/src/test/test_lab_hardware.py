@@ -17,32 +17,31 @@ def test_ode(t, y, u, K, tau):
   Defines a first-order ODE for testing the MFC update method.
       
   Args:
-    t (double): time required by odeint
-    y (double): array of current ODE state
-    u (double): input to the ODE
-    K (double): first-order system gain
-    tau (double): first-order system time constant
+    t (float): time required by odeint
+    y (float): array of current ODE state
+    u (float): input to the ODE
+    K (float): first-order system gain
+    tau (float): first-order system time constant
     
   Returns:
-    double: response = K*u/tau - y/tau
+    float: response = K*u/tau - y/tau
   """
       
   return K*u/tau - y/tau
 
-def test_ctrl_law(y, ref, K):
+def test_ctrl_law(e, K):
   """
   Defines a simple proportional control law.
   
   Args:
-    y (double): current state of an MFC
-    ref (double): desired state of the MFC
-    K (double): proportional controller gain
+    e (float): current state error (ref-x) of an MFC
+    K (float): proportional controller gain
   
   Returns:
-    double: control effort u = K*(ref - y)
+    float: control effort u = K*(ref - y)
   """
   
-  return K*(ref - y)
+  return K*(e)
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
@@ -153,8 +152,7 @@ class TestLabHardware(unittest.TestCase):
                 for K, tau in zip(K_list, tau_list)]
     
     # Initialize list of control laws
-    control_law_list = [lambda y, ref: test_ctrl_law(y, ref, K) for K
-                        in Kp_list]
+    control_law_list = [lambda e: test_ctrl_law(e, K) for K in Kp_list]
     
     # Initialize controller object with one MFC
     test_ctrl = lab_hardware.Controller(mfc_list[0], control_law_list[0],
