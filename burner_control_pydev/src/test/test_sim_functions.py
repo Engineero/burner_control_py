@@ -114,8 +114,12 @@ class Test(unittest.TestCase):
     bad_y_list = [0, 1, -1, [1, 0], [0, 0], [1, 1, 1, 1]]
     K_list = [1, 3, 10]
     delay_list = [0, 0.1, 0.3, 1]
+    mean_list = [0, 1, -1]
+    std_list = [0.01, 0.03, 0.1, 0.3]
     param_list = set(itertools.chain(*[zip(K_list, x) for x in
                                        itertools.permutations(delay_list, len(K_list))]))
+    noise_list = set(itertools.chain(*[zip(mean_list, x) for x in
+                                       itertools.permutations(std_list, len(mean_list))]))
     
     # Test response of the output function
     for K, delay in param_list:
@@ -123,12 +127,24 @@ class Test(unittest.TestCase):
       for y in y_list:
         self.assertEqual(sim_functions.first_order_output(np.array(y), C)[0],
                          y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12,
-                         "Unexpected output function output for y={}, K={}, delay={}".format(y, K, delay))
+                         "Unexpected output function response for y={}, K={}, delay={}".format(y, K, delay))
+        for mean, std in noise_list:  # test response with noise
+          self.assertAlmostEqual(sim_functions.first_order_output(np.array(y), C, mean, std),
+                                 y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12 + mean,
+                                 delta=4*std,
+                                 msg="Output function response not within 4 std of expected.\nNote this may not be an error since ~0.01% of values lie outside of this range.")
     
     # Test that function raises TypeError for inputs of wrong dimension
     with self.assertRaises(TypeError):
       for y in bad_y_list:
-        sim_functions.first_order_output(y, 1, 0.1)
+        sim_functions.first_order_output(np.array(y), np.array([[1]]))
+    
+    # Test that non-ndarray inputs raise AttributeError
+    with self.assertRaises(AttributeError):
+      for y in bad_y_list:
+        sim_functions.first_order_output(y, np.array([[1]]))
+        sim_functions.first_order_output(np.array(y), 1)
+        sim_functions.first_order_output(np.array(y), [1, 1])
   
   def test_static_model(self):
     """Tests for static_model function."""
