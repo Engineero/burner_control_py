@@ -10,29 +10,29 @@ import numbers
 
 
 def one_sphere(point, radius=1.0):
-    """
-    Checks whether points are inside or outside of a hypersphere.
+  """
+  Checks whether points are inside or outside of a hypersphere.
     
-    Args:
-        point (list, float): list representing test condition
-        radius (float, default=1.0): radius of hypersphere to test
+  Args:
+    point (list, float): list representing test condition
+    radius (float, default=1.0): radius of hypersphere to test
     
-    Returns:
-        int: 1 if point is outside of the sphere (good), 0 if point is inside
-          of or on the sphere (bad)
+  Returns:
+    int: 1 if point is outside of the sphere (good), 0 if point is inside
+      of or on the sphere (bad)
     
-    Raises:
-      ValueError: if radius <= 0
-      TypeError: if input values are non-numeric or radius is a list
-    """
+  Raises:
+    ValueError: if radius <= 0
+    TypeError: if input values are non-numeric or radius is a list
+  """
     
-    if radius <= 0:
-      raise ValueError("Radius must be > 0.")
+  if radius <= 0:
+    raise ValueError("Radius must be > 0.")
     
-    if isinstance(point, numbers.Number):
-      return 1 if point**2 > radius**2 else 0
-    else:
-      return 1 if sum([num**2 for num in point]) > radius**2 else 0
+  if isinstance(point, numbers.Number):
+    return 1 if point**2 > radius**2 else 0
+  else:
+    return 1 if sum([num**2 for num in point]) > radius**2 else 0
   
 def first_order_delay(t, y, u, A, B):
   """
@@ -120,11 +120,11 @@ def make_lqr_law(A, B, Q, R):
   
   # Solve the discrete-time Ricatti equation
   P = np.array(scipy.linalg.solve_discrete_are(A, B, Q, R))
-  print("Ricatti matrix P=\n{}".format(P))
   
   # Compute the LQR gain
-  K = np.array(scipy.linalg.inv(B.T*P*B + R)*(B.T*P*A))
-  print("LQR gain K=\n{}".format(K))
-  eigen_values, eigen_vectors = scipy.linalg.eig(A - B*K)
+  K = np.array(scipy.linalg.inv(R).dot((B.T).dot(P)))  # continuous LQR
+#   K = np.array(scipy.linalg.inv((B.T).dot(P).dot(B) + R)
+#                .dot((B.T).dot(P).dot(A)))  # discrete LQR
+  eigen_values, _ = scipy.linalg.eig(A - B.dot(K))
   
   return K, P, eigen_values

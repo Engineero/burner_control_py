@@ -166,22 +166,21 @@ class Test(unittest.TestCase):
     """Tests for make_lqr_law function."""
     
     # Define constants
-    tau_list = [0.3, 1]
+    tau_list = [0.3, 1, 3]
     delay_list = [0.1, 0.3]
-    K_list = [0.5, -2]
-    param_list = set(itertools.chain(*[zip(x, y, K_list) for x in
-                                       itertools.permutations(tau_list, len(K_list))
-                                       for y in itertools.permutations(delay_list, len(K_list))]))
+    param_list = set(itertools.chain(*[zip(tau_list, x) for x in
+                                       itertools.permutations(delay_list, len(tau_list))]))
     Q = np.array([[100, 0, 0], [0, 1, 0], [0, 0, 1]])  # state error weight
     R = np.array([[1]])  # control effort weight
     
-    for tau, delay, K in param_list:
+    for tau, delay in param_list:
       den = tau*delay**2
       A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
       B = np.array([[0], [0], [12/den]])
       
       # Create control law
-      K_lqr = sim_functions.make_lqr_law(A, B, Q, R)
+      K_lqr, _, eig_vals = sim_functions.make_lqr_law(A, B, Q, R)
+      print(eig_vals)
     
       # Test return type
       self.assertIsInstance(K_lqr, np.ndarray,
@@ -190,6 +189,10 @@ class Test(unittest.TestCase):
       # Test return dimensions
       self.assertTupleEqual(K_lqr.shape, (1, 3),
                        "LQR law not the correct shape: {}, expected (1, 3).".format(K_lqr.shape))
+      
+      # Test that controlled system is stable
+      self.assertTrue(all([np.real(item) < 0 for item in eig_vals]),
+                      "All LQR-controlled poles not in left-half plane.")
   
 
 if __name__ == "__main__":
