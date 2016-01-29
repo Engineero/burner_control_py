@@ -40,7 +40,8 @@ class Combustor():
   of the experimental setup. 
   '''
 
-  def __init__(self, p_atm, t_step, t_step_ctrl):
+  def __init__(self, p_atm, t_step, t_step_ctrl, sensor_list, mfc_list,
+               control_law_list):
     '''
     Constructor. Adds components of the combustor to its component list, sets
     the atmospheric pressure, and gets everything ready to go (theoretically).
@@ -48,52 +49,25 @@ class Combustor():
     Args:
       p_atm (float): atmospheric pressure in psi
       t_step (float): time step for system simulation
+      sensor_list (list, Instrument): list of sensor objects
+      mfc_list (list, MFC): list of MFC objects
+      control_law_list (list, function): list of control law functions
     '''
     
     # Initialize constants
     self.p_atm = p_atm
     self.t_step = t_step
     self.time = 0.0  # initialize current time to zero
-    K = 0.1
-    offset = 1.0
-    K_mfcs = [10.0, 5.0, 2.0, 1.0]  # MFC gains
-    tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants
-    td_mfcs = [0.2, 0.1, 0.4, 0.3]  # MFC time delays
-    y0 = [0.0, 0.0, 0.0]  # initial value
-    mfc_list = []
-    control_law_list = []
-    Q = np.ndarray([[100, 0, 0], [0, 1, 0], [0, 0, 1]])
-    R = np.ndarray([[1]])
-    
-    # Initialize sensor list
-    self.sensor_list = [StaticSensor(model=lambda y: sim_functions.static_model(y, K, offset),
-                                     location=0.0),
-                        DynamicSensor(model=tf1, location=1.0)]
-    #TODO initialize others
-    #TODO figure out transfer functions!
-    
-    # Initilaize flame
     self.flame = Flame(operating_map=lambda p: sim_functions.one_sphere(p, radius=2.0))
-    #TODO figure out operating space maps!
-    
-    # Initialize mass flow controller (MFC) list and control law list
-    for K, tau, delay in zip(K_mfcs, tau_mfcs, td_mfcs):
-      den = tau*delay**2
-      A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
-      B = np.array([[0], [0], [12/den]])
-      C = np.array([[K, -K*delay/2, K*delay**2/12]])
-      K_lqr = sim_functions.make_lqr_law(A, B, Q, R)
-      mfc_list.append(MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
-                          lambda y: sim_functions.first_order_output(y, C), y0))
-      control_law_list.append(lambda e: -K_lqr.dot(e))
-    
-    # Initialize the controller (which will contain the MFC list)
     self.controller = Controller(mfc_list, control_law_list, t_step_ctrl)
     
-  def update(self):
+  def update(self, mass_flow_des):
     """
     Update the experimental apparatus by calling the update functions for each
     component sequentially.
+    
+    Args:
+      mass_flow_des (ndarray): desired mass flow rates for all MFCs
     """
     
     self.controller.update(mass_flow_des, self.t_step, self.time)

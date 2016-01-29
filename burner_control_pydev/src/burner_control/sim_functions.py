@@ -135,3 +135,25 @@ def make_lqr_law(A, B, Q, R):
   eigen_values, _ = scipy.linalg.eig(A - B.dot(K))
   
   return K, P, eigen_values
+
+def get_state_matrices(K, tau, td):
+  """
+  Generates the state space equation matrices for a first-order system with
+  second-order Pade approximation of time delay.
+  
+  Args:
+    K (float): first-order system gain
+    tau (float): first-order system time constant
+    td (float): time delay, approximated by second-order Pade approximation
+    
+  Returns:
+    A, B, C (ndarray): matrices of system state space equation:
+      x_dot = A*x + B*u
+      y = C*x
+  """
+  
+  den = tau*td**2
+  A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
+  B = np.array([[0], [0], [12/den]])
+  C = np.array([[K, -K*td/2, K*td**2/12]])
+  return A, B, C

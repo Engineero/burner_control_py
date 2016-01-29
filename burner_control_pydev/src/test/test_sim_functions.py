@@ -210,6 +210,30 @@ class Test(unittest.TestCase):
       self.assertTrue(all([np.real(item) < 0 for item in eig_vals]),
                       "All LQR-controlled poles not in left-half plane.")
   
+  def test_get_state_matrices(self):
+    """Tests the get_state_matrices function."""
+    
+    # Define constants
+    K_list = [1, 3, 10]
+    tau_list = [0.1, 0.3, 1]
+    delay_list = [0.01, 0.1, 0.3, 1]
+    param_list = set(itertools.chain(*[zip(K_list, x, y) for x in
+                                       itertools.permutations(tau_list, len(K_list))
+                                       for y in
+                                       itertools.permutations(delay_list, len(K_list))]))
+    for K, tau, td in param_list:
+      den = tau*td**2
+      A_exp = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
+      B_exp = np.array([[0], [0], [12/den]])
+      C_exp = np.array([[K, -K*td/2, K*td**2/12]])
+      A, B, C = sim_functions.get_state_matrices(K, tau, td)
+      self.assertListEqual(A.tolist(), A_exp.tolist(),
+                           "A matrix does not match expected.")
+      self.assertListEqual(B.tolist(), B_exp.tolist(),
+                           "B matrix does not match expected.")
+      self.assertListEqual(C.tolist(), C_exp.tolist(),
+                           "C matrix does not match expected")
+  
 
 if __name__ == "__main__":
   #import sys;sys.argv = ['', 'Test.testName']

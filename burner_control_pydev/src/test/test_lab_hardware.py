@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from burner_control import lab_hardware, sim_functions
 
-plot_flag = True  # True if we want some tests to plot results
+plot_flag = False  # True if we want some tests to plot results
 
 
 def test_ode(t, y, u, K, tau):
@@ -41,7 +41,7 @@ def test_ctrl_law(e, K):
     float: control effort u = K*(ref - y)
   """
   
-  return K*(e)
+  return K*e
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
@@ -63,10 +63,7 @@ class TestLabHardware(unittest.TestCase):
     response = []
     
     # Define model matrices
-    den = tau*td**2
-    A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
-    B = np.array([[0], [0], [12/den]])
-    C = np.array([K, -K*td/2, K*td**2/12])
+    A, B, C = sim_functions.get_state_matrices(K, tau, td)
     
     # Initialize the MFCs
     test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
@@ -112,7 +109,7 @@ class TestLabHardware(unittest.TestCase):
     # Test the second MFC in simulation
     self.assertTrue(test_mfc2.get_output() != y0_2[0],
                     "MFC state failed to update from y0")
-    self.assertAlmostEqual(test_mfc2.get_output()[0], K, places=2,
+    self.assertAlmostEqual(test_mfc2.get_output()[0][0], K, places=2,
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(test_mfc2.get_time(), time,
                      "MFC2 simulation time out of sync with global simulation time")
@@ -293,21 +290,18 @@ class TestLabHardware(unittest.TestCase):
     """Tests for the lab_hardware.KalmanFilter class."""
     
     # Define constants
-    K = 10.0
-    tau = 1.0
-    td = 0.2
-    den = tau*td**2
-    Ks = 2.0
-    offset = 0
-    mean = 0
-    std = 1
-    A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
-    B = np.array([[0], [0], [12/den]])
-    C = np.array([[K, -K*td/2, K*td**2/12]])
+    K = 10.0  # first-order system gain
+    tau = 1.0  # first-order system time constant
+    td = 0.2  # first-order system time delay
+    A, B, C = sim_functions.get_state_matrices(K, tau, td)  # SS matrices
+    Ks = 2.0  # static sensor gain
+    offset = 0  # static sensor offset
+    mean = 0  # static sensor noise mean
+    std = 1  # static sensor noise standard deviation
     Q = 1e-5*np.identity(A.shape[0])  # process noise covariance
     R = std  # measurement noise covariance
     P = Q  # initial estimate of error covariance
-    x0 = [0]*A.shape[0]
+    x0 = [0]*A.shape[0]  # initial state
     stop_time = 10
     input_val = 1
     t_step = 0.01
