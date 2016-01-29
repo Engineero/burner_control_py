@@ -7,6 +7,7 @@ Created on Jan 7, 2016
 import numpy as np
 from burner_control import lab_hardware, sim_functions
 
+
 def run_simulation():
   """Run a simulation of the controller."""
   
