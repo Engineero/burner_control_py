@@ -25,13 +25,14 @@ def run_simulation():
   control_law_list = []
   Q = np.ndarray([[100, 0, 0], [0, 1, 0], [0, 0, 1]])
   R = np.ndarray([[1]])
+  sensor_locations = [43.81, 76.2, 236.728, 609.6]  # sensor locations from base, mm
     
   # Initialize sensor list
   sensor_list = [lab_hardware.StaticSensor(model=lambda y: sim_functions.static_model(y, K, offset),
-                              location=0.0),
-                 lab_hardware.DynamicSensor(model=tf1, location=1.0)]
-  #TODO initialize others
-  #TODO figure out transfer functions!
+                              location=0.0)]
+  for loc in sensor_locations:
+    sensor_list.append(lab_hardware.DynamicSensor(model=tf1, location=loc))
+  #TODO figure out sensor transfer functions or models!
   
   # Initialize mass flow controller (MFC) list and control law list
   for K, tau, delay in zip(K_mfcs, tau_mfcs, td_mfcs):
