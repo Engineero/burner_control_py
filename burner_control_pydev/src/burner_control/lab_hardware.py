@@ -74,7 +74,8 @@ class Combustor():
     #TODO figure out how to update desired mass flow rate
     
     flame_snapshot = self.flame.update(self.controller.get_output())
-    #TODO figure out what the flame has to return
+    #TODO figure out what the flame has to return. Or we could just pass the
+    # flame to sensors.
     
     for sensor in self.sensor_list:
       sensor.update(flame_snapshot, self.t_step)
@@ -97,7 +98,7 @@ class Flame():
     
     self.operating_map = operating_map
     self.model = model  #TODO figure out what to do with the model
-    self.state = False
+    self.state = False  # no flame to start
     
   def ignite(self):
     """Lights the flame by setting its state to True."""
@@ -251,41 +252,47 @@ class StaticSensor(Instrument):
 class DynamicSensor(Instrument):
   """Defines the dynamic sensor object."""
   
-  def __init__(self, model, location):
+  def __init__(self, model, location, rate):
     """
     Constructor
     
     Args:
       model (undecided): some model defining the response of the sensor to
         stimulus
-      location (float): location of the sensor from the combustor
+      location (float): location of the sensor from the combustor, mm
+      rate (float): sample rate of the sensor, Hz
     """
     
     #TODO maybe use an ODE to define the sensor model, like in MFC class?
     self.model = model
-    self.reading = 0.0
+    self.rate = rate
+    self.reading = []
+    self.time = []
     #TODO figure out how to make use of the location
     super(DynamicSensor, self).__init__(location)  # parent keeps location
   
-  def get_output(self):
+  def get_time_series(self):
     """
-    Get the instant output state of the sensor.
+    Output the response of the sensor as a time series.
     
     Returns:
-      float: single-value instant reading of the sensor
+      reading (float array): time series reading of the sensor for current sim
+        time step
+      time (float array): time value for each reading, starting at 0.0
     """
     
-    return self.reading
-  
-  def get_time_series(self):
-    """Output the response of the sensor as a time series."""
-    
-    pass
+    return self.reading, self.time
   
   def get_power_spectrum(self):
-    """Output the response of the sensor as a power spectrum."""
+    """
+    Output the response of the sensor as a power spectrum.
     
-    pass
+    Returns:
+      (complex array): power spectrum of time series, obtained by FFT
+      (float array): frequency values for power spectrum
+    """
+    
+    return np.fft.fft(self.reading), np.fft.fftfreq(self.time.shape[-1])
   
   def update(self, in_value, t_step):
     """
@@ -296,12 +303,25 @@ class DynamicSensor(Instrument):
       t_step (float): time step for simulation
     
     Returns:
-      float: single-value instant reading of the sensor
+      reading (float array): time series reading of the sensor for current sim
+        time step
+      time (float array): time value for each reading, starting at 0.0
     """
     
-#     self.reading = self.model(in_value, t_step)
-#     return self.reading
-    pass
+    #TODO
+    # Maybe make a time series here and store it as self.reading. Basically
+    # simulate the response of the sensor at the sensor's sample rate for the
+    # time t_step, store that time series, and then we can either return that
+    # time series or return some analysis thereof.
+    
+    temp_time = 0.0
+    self.reading = []
+    
+    while temp_time < t_step:
+      self.time.append(temp_time)  
+      self.reading.append(self.model(in_value, self.rate))
+      temp_time += self.rate
+    return self.reading, self.time
   
 class Controller():
   """
