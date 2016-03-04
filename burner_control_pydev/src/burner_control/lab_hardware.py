@@ -296,7 +296,10 @@ class DynamicSensor(Instrument):
   
   def update(self, in_value, t_step):
     """
-    Update the response of the sensor.
+    Update the response of the sensor. Note that if the sensor's sample rate is
+    greater than the input t_step value, you will still get a single sample
+    every time update is called. In general, update will return a time series
+    that is max(1, floor(t_step/self.rate)) elements long.
     
     Args:
       in_value (float): state that the sensor is reading
