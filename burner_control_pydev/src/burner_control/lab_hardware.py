@@ -252,19 +252,21 @@ class StaticSensor(Instrument):
 class DynamicSensor(Instrument):
   """Defines the dynamic sensor object."""
   
-  def __init__(self, model, location, rate):
+  def __init__(self, model, y0, location, rate):
     """
     Constructor
     
     Args:
-      model (undecided): some model defining the response of the sensor to
-        stimulus
+      model (function): ODE defining the response of the sensor to stimulus
+      y0 (float array): initial condition of the system's model
       location (float): location of the sensor from the combustor, mm
       rate (float): sample rate of the sensor, Hz
     """
     
-    #TODO maybe use an ODE to define the sensor model, like in MFC class?
-    self.model = model
+    #TODO figure out an ODE dynamic sensor model that works
+    self.model = integrate.ode(model)
+    self.ode.set_integrator("dopri5")  # RK45 solver
+    self.ode.set_initial_value(y0)  # initial state, initial t = 0.0
     self.rate = rate
     self.reading = []
     self.time = []
@@ -278,7 +280,7 @@ class DynamicSensor(Instrument):
     Returns:
       reading (float array): time series reading of the sensor for current sim
         time step
-      time (float array): time value for each reading, starting at 0.0
+      time (float array): time value for each reading starting at 0.0, sec
     """
     
     return self.reading, self.time
@@ -321,8 +323,12 @@ class DynamicSensor(Instrument):
     self.reading = []
     
     while temp_time < t_step:
-      self.time.append(temp_time)  
-      self.reading.append(self.model(in_value, self.rate))
+      self.time.append(temp_time)
+      self.model.set_f_params(in_value)
+      self.model.integrate(self.model.t + self.rate)
+      if not self.model.successful():
+        break
+      self.reading.append(self.model.y)
       temp_time += self.rate
     return self.reading, self.time
   
