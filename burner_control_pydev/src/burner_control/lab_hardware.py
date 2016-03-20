@@ -264,6 +264,9 @@ class DynamicSensor(Instrument):
     """
     
     #TODO figure out an ODE dynamic sensor model that works
+    #TODO maybe use this class to just simulate some noise signal at sensor
+    # rate with frequency-dependent amplitude based on location in the operating
+    # space of the combustor?
     self.model = integrate.ode(model)
     self.ode.set_integrator("dopri5")  # RK45 solver
     self.ode.set_initial_value(y0)  # initial state, initial t = 0.0

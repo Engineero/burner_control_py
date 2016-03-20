@@ -152,6 +152,8 @@ def get_state_matrices(K, tau, td):
       y = C*x
   """
   
+  #TODO maybe implement second-order system with second-order Pade approximation of time delay?
+  
   den = tau*td**2
   A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
   B = np.array([[0], [0], [12/den]])
