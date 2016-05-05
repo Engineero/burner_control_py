@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from burner_control import lab_hardware, sim_functions
 
-plot_flag = False  # True if we want some tests to plot results
+plot_flag = True  # True if we want some tests to plot results
 
 
 def test_ode(t, y, u, K, tau):
@@ -59,10 +59,13 @@ class TestLabHardware(unittest.TestCase):
     self.input_val = 1.0
     self.t_step_ctrl = 0.1
     self.y0_1 = [0]
-    self.y0_2 = [0]*3
+    self.y0_2 = [0]*3  # for first-order model
+    self.y0_3 = [0]*4  # for second-order model
     A, B, self.C = sim_functions.get_state_matrices(self.K_list[-1],
                                                self.tau_list[-1],
                                                self.delay_list[0])
+    A2, B2, self.C2 = sim_functions.get_second_ord_matrices(self.K_list[-1],
+                                                            0.6, 10.0, 0.1)
     self.Kp_list = [4.0, 5.0]
     self.mass_flow_des = [4.0, 2.0]
     self.std = 1.0
@@ -76,9 +79,12 @@ class TestLabHardware(unittest.TestCase):
     # Define objects
     self.test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, self.K_list[-1], self.tau_list[-1]),
                                       lambda x: x[0], self.y0_1)
-    self.test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
-                                      lambda y: sim_functions.first_order_output(y, self.C),
+    self.test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A, B),
+                                      lambda y: sim_functions.system_output(y, self.C),
                                       self.y0_2)
+    self.test_mfc3 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A2, B2),
+                                      lambda y: sim_functions.system_output(y, self.C2),
+                                      self.y0_3)
     self.mfc_list = [lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
                                       lambda x: x[0], self.y0_1)
                      for K, tau in zip(self.K_list, self.tau_list)]
@@ -105,20 +111,25 @@ class TestLabHardware(unittest.TestCase):
                      "MFC1 state failed to initialize to y0_1")
     self.assertEqual(self.test_mfc2.get_output(), self.y0_2[0],
                      "MFC2 state failed to initialize to y0_2")
+    self.assertEqual(self.test_mfc3.get_output(), self.y0_3[0],
+                     "MFC3 state failed to initialize to y0_3")
     self.assertEqual(self.test_mfc1.get_time(), 0.0,
                      "MFC1 time failed to initialize to 0.0")
     
     # Run the MFC a bit
-    print("MFC1 output\tMFC2 output")
+    print("MFC1 output\tMFC2 output\tMFC3 output")
     while self.test_mfc2.get_time() < self.stop_time:
       if self.test_mfc1.update(self.input_val, self.t_step) and \
-      self.test_mfc2.update(self.input_val, self.t_step):
+      self.test_mfc2.update(self.input_val, self.t_step) and \
+      self.test_mfc3.update(self.input_val, self.t_step):
         t_list.append(time)
         response.append([self.test_mfc1.get_output(),
-                         self.test_mfc2.get_output()])
+                         self.test_mfc2.get_output(),
+                         self.test_mfc3.get_output()])
         if time == 0.0 or self.test_mfc2.get_time() % 1.0 < self.t_step:
-          print("{}\t{}".format(self.test_mfc1.get_output(),
-                                self.test_mfc2.get_output()))
+          print("{}\t{}\t{}".format(self.test_mfc1.get_output(),
+                                self.test_mfc2.get_output(),
+                                self.test_mfc3.get_output()))
         time += self.t_step
       else:
         break
@@ -135,7 +146,7 @@ class TestLabHardware(unittest.TestCase):
     
     # Test the second MFC in simulation
     self.assertTrue(self.test_mfc2.get_output() != self.y0_2[0],
-                    "MFC state failed to update from y0")
+                    "MFC2 state failed to update from y0")
     self.assertAlmostEqual(self.test_mfc2.get_output()[0][0], self.K_list[-1],
                            places=2,
                            msg="Final value of MFC2 not close to expected value")
@@ -145,14 +156,26 @@ class TestLabHardware(unittest.TestCase):
                            delta=self.t_step,
                            msg="MFC2 simulation time not equal to stop time.")
     
+    # Test the third MFC in simulation
+    self.assertTrue(self.test_mfc3.get_output() != self.y0_3[0],
+                    "MFC3 state failed to update from y0")
+    self.assertAlmostEqual(self.test_mfc3.get_output()[0][0], self.K_list[-1],
+                           places=2,
+                           msg="Final value of MFC3 not close to expected value")
+    self.assertEqual(self.test_mfc3.get_time(), time,
+                     "MFC3 simulation time out of sync with global simulation time")
+    self.assertAlmostEqual(self.test_mfc3.get_time(), self.stop_time,
+                           delta=self.t_step,
+                           msg="MFC3 simulation time not equal to stop time.")
+    
     # Plot the response of the MFCs
     if plot_flag:
       plt.plot(t_list, response)
       plt.grid(True)
       plt.xlabel("Time (seconds)")
       plt.ylabel("MFC Response (LPM)")
-      plt.title("Unit Step Response of First-Order MFC Simulation")
-      plt.legend(["First Order", "Pade Approx. w/ Delay"])
+      plt.title("Unit Step Response of MFC Simulation")
+      plt.legend(["First Order", "Pade Approx. w/ Delay", "2nd Order Pade"])
       plt.show()  # called at end to prevent plot from automatically closing
 
   def test_controller_class(self):

@@ -60,7 +60,7 @@ class Test(unittest.TestCase):
                         "Misclassifying good points when assigning radius.")
     
   def test_first_order_delay(self):
-    """Tests for first_order_delay function."""
+    """Tests for system_with_delay function for first-order ODE."""
     
     # Define constants
     y0 = np.reshape([0.5]*3, (3, 1))
@@ -72,7 +72,7 @@ class Test(unittest.TestCase):
                                        itertools.permutations(tau_list, len(delay_list))]))
     
     # Set up the ODE
-    test_ode = integrate.ode(sim_functions.first_order_delay)
+    test_ode = integrate.ode(sim_functions.system_with_delay)
     test_ode.set_integrator("dopri5")
     test_ode.set_initial_value(y0)
     
@@ -107,7 +107,7 @@ class Test(unittest.TestCase):
     print("Done!")
   
   def test_first_order_output(self):
-    """Tests for first_order_output function."""
+    """Tests for system_output function for first order ODE."""
     
     # Define constants
     y_list = itertools.combinations_with_replacement([-1, 0, 1], 3)
@@ -125,11 +125,11 @@ class Test(unittest.TestCase):
     for K, delay in param_list:
       C = np.array([[K, -K*delay/2, K*delay**2/12]])
       for y in y_list:
-        self.assertEqual(sim_functions.first_order_output(np.array(y), C)[0],
+        self.assertEqual(sim_functions.system_output(np.array(y), C)[0],
                          y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12,
                          "Unexpected output function response for y={}, K={}, delay={}".format(y, K, delay))
         for mean, std in noise_list:  # test response with noise
-          self.assertAlmostEqual(sim_functions.first_order_output(np.array(y), C, mean, std),
+          self.assertAlmostEqual(sim_functions.system_output(np.array(y), C, mean, std),
                                  y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12 + mean,
                                  delta=4*std,
                                  msg="Output function response not within 4 std of expected.\nNote this may not be an error since ~0.01% of values lie outside of this range.")
@@ -137,14 +137,14 @@ class Test(unittest.TestCase):
     # Test that function raises TypeError for inputs of wrong dimension
     with self.assertRaises(TypeError):
       for y in bad_y_list:
-        sim_functions.first_order_output(np.array(y), np.array([[1]]))
+        sim_functions.system_output(np.array(y), np.array([[1]]))
     
     # Test that non-ndarray inputs raise AttributeError
     with self.assertRaises(AttributeError):
       for y in bad_y_list:
-        sim_functions.first_order_output(y, np.array([[1]]))
-        sim_functions.first_order_output(np.array(y), 1)
-        sim_functions.first_order_output(np.array(y), [1, 1])
+        sim_functions.system_output(y, np.array([[1]]))
+        sim_functions.system_output(np.array(y), 1)
+        sim_functions.system_output(np.array(y), [1, 1])
   
   def test_static_model(self):
     """Tests for static_model function."""

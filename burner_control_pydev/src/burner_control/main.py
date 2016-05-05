@@ -38,8 +38,8 @@ def run_simulation():
   for K, tau, delay in zip(K_mfcs, tau_mfcs, td_mfcs):
     A, B, C = sim_functions.get_state_matrices(K, tau, delay)
     K_lqr = sim_functions.make_lqr_law(A, B, Q, R)
-    mfc_list.append(lab_hardware.MFC(lambda t, y, u: sim_functions.first_order_delay(t, y, u, A, B),
-                                     lambda y: sim_functions.first_order_output(y, C),
+    mfc_list.append(lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A, B),
+                                     lambda y: sim_functions.system_output(y, C),
                                      y0))
     control_law_list.append(lambda e: -K_lqr.dot(e))
     

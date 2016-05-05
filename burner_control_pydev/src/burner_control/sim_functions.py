@@ -34,7 +34,7 @@ def one_sphere(point, radius=1.0):
   else:
     return 1 if sum([num**2 for num in point]) > radius**2 else 0
   
-def first_order_delay(t, y, u, A, B):
+def system_with_delay(t, y, u, A, B):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.
@@ -58,10 +58,10 @@ def first_order_delay(t, y, u, A, B):
   # noise, then define "N" with the appropriate dimensions.
   return A.dot(y.reshape(len(y), 1)) + B.dot(u)
 
-def first_order_output(y, C, mean=0, std=0):
+def system_output(y, C, mean=0, std=0):
   """
-  Defines the output function for the 2nd-order Pade approximation of a
-  1st-order ODE with time delay. Used to get pressure from the state equation.
+  Defines the output function for the general ODE with time delay used to model
+  the MFCs. Used to get pressure from the state equation.
   
   Args:
     y (ndarray): current state of the ODE
@@ -152,10 +152,32 @@ def get_state_matrices(K, tau, td):
       y = C*x
   """
   
-  #TODO maybe implement second-order system with second-order Pade approximation of time delay?
-  
   den = tau*td**2
   A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
   B = np.array([[0], [0], [12/den]])
   C = np.array([[K, -K*td/2, K*td**2/12]])
+  return A, B, C
+
+def get_second_ord_matrices(K, zeta, wn, td):
+  """
+  Generates the state space equation matrices for a second-order system with
+  3,2-order Pade approximation of time delay.
+  
+  Args:
+    K (float): second-order system gain
+    zeta (float): second-order system damping ratio
+    wn (float): second-order system natural frequency
+    td (float): time delay, approximated by 3,2-order Pade approximation
+    
+  Returns:
+    A, B, C (ndarray): matrices of system state space equation:
+      x_dot = A*x + B*u
+      y = C*x
+  """
+  
+  td2 = td**2
+  wn2 = wn**2
+  A = np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [-20*wn2/td2, (-8*td*wn2-40*zeta*wn)/td2, (-td2*wn2-40*zeta*wn*td-20)/td2, (-2*zeta*td*wn-8)/td]])
+  B = np.array([[0], [0], [0], [20*wn2/td2]])
+  C = np.array([[K, -K*3*td/5, K*3*td2/20, -td**3/60]])
   return A, B, C
