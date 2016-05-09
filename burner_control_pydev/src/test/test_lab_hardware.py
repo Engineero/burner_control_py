@@ -51,21 +51,25 @@ class TestLabHardware(unittest.TestCase):
     
     # Define class and local parameters
     unittest.TestCase.setUp(self)
-    self.K_list = [3, 10]
+    self.K_list = [3, 10, 99.21]
     self.tau_list = [0.3, 1]
     self.delay_list = [0.03, 0.1, 0.3]
     self.t_step = 0.01
-    self.stop_time = 10.0
+    self.stop_time = 20.0
     self.input_val = 1.0
     self.t_step_ctrl = 0.1
+    self.zeta = 0.7054  # air MFC damping ratio
+    self.wn = 1.3501  # air MFC natural frequency, rad/s
+    self.td = 1.8  # air MFC time delay, sec
     self.y0_1 = [0]
     self.y0_2 = [0]*3  # for first-order model
     self.y0_3 = [0]*4  # for second-order model
-    A, B, self.C = sim_functions.get_state_matrices(self.K_list[-1],
+    A, B, self.C = sim_functions.get_state_matrices(self.K_list[1],
                                                self.tau_list[-1],
                                                self.delay_list[0])
     A2, B2, self.C2 = sim_functions.get_second_ord_matrices(self.K_list[-1],
-                                                            0.6, 10.0, 0.1)
+                                                            self.zeta, self.wn,
+                                                            self.td)
     self.Kp_list = [4.0, 5.0]
     self.mass_flow_des = [4.0, 2.0]
     self.std = 1.0
@@ -77,7 +81,7 @@ class TestLabHardware(unittest.TestCase):
     mean = 0.0
     
     # Define objects
-    self.test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, self.K_list[-1], self.tau_list[-1]),
+    self.test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, self.K_list[1], self.tau_list[-1]),
                                       lambda x: x[0], self.y0_1)
     self.test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A, B),
                                       lambda y: sim_functions.system_output(y, self.C),
@@ -135,7 +139,7 @@ class TestLabHardware(unittest.TestCase):
         break
     
     # Test the MFC after running
-    self.assertAlmostEqual(self.test_mfc1.get_output(), self.K_list[-1],
+    self.assertAlmostEqual(self.test_mfc1.get_output(), self.K_list[1],
                            places=3,
                            msg="Final value of MFC1 not close to expected value")
     self.assertEqual(self.test_mfc1.get_time(), time,
@@ -147,7 +151,7 @@ class TestLabHardware(unittest.TestCase):
     # Test the second MFC in simulation
     self.assertTrue(self.test_mfc2.get_output() != self.y0_2[0],
                     "MFC2 state failed to update from y0")
-    self.assertAlmostEqual(self.test_mfc2.get_output()[0][0], self.K_list[-1],
+    self.assertAlmostEqual(self.test_mfc2.get_output()[0][0], self.K_list[1],
                            places=2,
                            msg="Final value of MFC2 not close to expected value")
     self.assertEqual(self.test_mfc2.get_time(), time,
@@ -160,7 +164,7 @@ class TestLabHardware(unittest.TestCase):
     self.assertTrue(self.test_mfc3.get_output() != self.y0_3[0],
                     "MFC3 state failed to update from y0")
     self.assertAlmostEqual(self.test_mfc3.get_output()[0][0], self.K_list[-1],
-                           places=2,
+                           delta=0.05*self.K_list[-1],
                            msg="Final value of MFC3 not close to expected value")
     self.assertEqual(self.test_mfc3.get_time(), time,
                      "MFC3 simulation time out of sync with global simulation time")
@@ -359,7 +363,7 @@ class TestLabHardware(unittest.TestCase):
         break
     
     # Test the result of running the system with the KF
-    self.assertAlmostEqual(response[-1][0], self.K_list[-1]*self.input_val,
+    self.assertAlmostEqual(response[-1][0], self.K_list[1]*self.input_val,
                            delta=3*self.std,
                            msg="Filtered response value not within 3*std of expected value.")
     
