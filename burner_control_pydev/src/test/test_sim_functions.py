@@ -233,6 +233,10 @@ class Test(unittest.TestCase):
                            "B matrix does not match expected.")
       self.assertListEqual(C.tolist(), C_exp.tolist(),
                            "C matrix does not match expected")
+    
+    def test_get_second_ord_matrices(self):
+      """Tests the sim_functions.get_second_ord_matrices method."""
+      pass
   
 
 if __name__ == "__main__":
