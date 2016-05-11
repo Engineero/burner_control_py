@@ -17,11 +17,11 @@ def run_simulation():
   t_step_ctrl = 0.1  # controller update rate, seconds
   K = 0.1  # static pressure sensor gain, V/psi (?)
   offset = 1.0  # static pressure sensor offset, V (?)
-  K_mfcs = [99.21, 5.0, 2.0, 1.0]  # MFC gains: [air, pilot, middle, outer], SLPM/V
+  K_mfcs = [99.21, 7.968, 7.964, 8.007]  # MFC gains: [air, pilot, middle, outer], SLPM/V
 #   tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants, sec
   zeta_mfcs = [0.7054, 0.6, 0.6, 0.6]  # MFC damping ratios
   wn_mfcs = [1.3501, 1, 1, 1]  # MFC natural frequencies, rad/sec
-  td_mfcs = [1.8, 0.1, 0.4, 0.3]  # MFC time delays, sec
+  td_mfcs = [1.8, 0.139, 0.194, 0.306]  # MFC time delays, sec
   y0 = [0.0, 0.0, 0.0, 0.0]  # initial value, 2nd order sys with 3,2 order Pade approximation of time delay
   mfc_list = []
   control_law_list = []
