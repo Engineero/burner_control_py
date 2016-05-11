@@ -73,8 +73,8 @@ class TestLabHardware(unittest.TestCase):
     self.Kp_list = [4.0, 5.0]
     self.mass_flow_des = [4.0, 2.0]
     self.std = 1.0
-    self.Ks = 2.0
-    Q = 1e-5*np.identity(A.shape[0])  # process noise covariance
+    self.Ks = 2.0  # filter static gain (?)
+    Q = 1e-5*np.identity(A2.shape[0])  # process noise covariance
     R = self.std  # measurement noise covariance
     self.P = Q  # initial estimate of error covariance
     self.offset = 0.0
@@ -83,16 +83,16 @@ class TestLabHardware(unittest.TestCase):
     # Define objects
     self.test_mfc1 = lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, self.K_list[1], self.tau_list[-1]),
                                       lambda x: x[0], self.y0_1)
-    self.test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A, B),
+    self.test_mfc2 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_state_update(t, y, u, A, B),
                                       lambda y: sim_functions.system_output(y, self.C),
                                       self.y0_2)
-    self.test_mfc3 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A2, B2),
+    self.test_mfc3 = lab_hardware.MFC(lambda t, y, u: sim_functions.system_state_update(t, y, u, A2, B2),
                                       lambda y: sim_functions.system_output(y, self.C2),
                                       self.y0_3)
     self.mfc_list = [lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
                                       lambda x: x[0], self.y0_1)
                      for K, tau in zip(self.K_list, self.tau_list)]
-    self.test_KF = lab_hardware.KalmanFilter(A, B, self.Ks*self.C, Q, R, self.P)
+    self.test_KF = lab_hardware.KalmanFilter(A2, B2, self.Ks*self.C2, Q, R, self.P)
     self.test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, self.Ks, self.offset, mean, self.std),
                                                  1.0)
 
@@ -335,7 +335,7 @@ class TestLabHardware(unittest.TestCase):
     self.assertIsInstance(self.test_KF, lab_hardware.KalmanFilter,
                           "Kalman filter not initialized to KF class.")
     self.assertListEqual(self.test_KF.get_output().flatten().tolist(),
-                         self.y0_2,
+                         self.y0_3,
                      "Kalman filter initial state does not match expected value.")
     self.assertListEqual(self.test_KF.get_err_cov().tolist(), self.P.tolist(),
                      "Kalman filter initial estimated error covariance does not match expected.")
@@ -348,22 +348,22 @@ class TestLabHardware(unittest.TestCase):
     
     # Run the MFC a bit with sensor
     print("Time\tMFC output\tMFC output with noise\tKalman filter output")
-    while self.test_mfc2.get_time() < self.stop_time:
-      if self.test_mfc2.update(self.input_val, self.t_step):
+    while self.test_mfc3.get_time() < self.stop_time:
+      if self.test_mfc3.update(self.input_val, self.t_step):
         t_list.append(time)
-        reading = self.test_sensor.update(self.test_mfc2.get_output())
+        reading = self.test_sensor.update(self.test_mfc3.get_output())
         KF_value = self.test_KF.update(reading, self.input_val)
-        response.append([self.test_mfc2.get_output()[0][0], reading[0][0],
-                         self.C.dot(KF_value)[0][0]])
-        if time == 0.0 or self.test_mfc2.get_time() % 1.0 < self.t_step:
-          print("{}\t{}".format(self.test_mfc2.get_time(),
+        response.append([self.test_mfc3.get_output()[0][0], reading[0][0],
+                         self.C2.dot(KF_value)[0][0]])
+        if time == 0.0 or self.test_mfc3.get_time() % 1.0 < self.t_step:
+          print("{}\t{}".format(self.test_mfc3.get_time(),
                                 response[-1]))
         time += self.t_step
       else:
         break
     
     # Test the result of running the system with the KF
-    self.assertAlmostEqual(response[-1][0], self.K_list[1]*self.input_val,
+    self.assertAlmostEqual(response[-1][0], self.K_list[-1]*self.input_val,
                            delta=3*self.std,
                            msg="Filtered response value not within 3*std of expected value.")
     
@@ -373,7 +373,7 @@ class TestLabHardware(unittest.TestCase):
       plt.grid(True)
       plt.xlabel("Time (seconds)")
       plt.ylabel("MFC Response (LPM)")
-      plt.title("Unit Step Response of First-Order MFC Simulation with Noise and Kalman Filter")
+      plt.title("Unit Step Response of Second-Order MFC Simulation with Noise and Kalman Filter")
       plt.legend(["Pade Approx. Sys.", "With Noise", "Kalman-Filtered"])
       plt.show()  # called at end to prevent plot from automatically closing
 

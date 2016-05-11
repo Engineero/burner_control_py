@@ -60,7 +60,7 @@ class Test(unittest.TestCase):
                         "Misclassifying good points when assigning radius.")
     
   def test_first_order_delay(self):
-    """Tests for system_with_delay function for first-order ODE."""
+    """Tests for system_state_update function for first-order ODE."""
     
     # Define constants
     y0 = np.reshape([0.5]*3, (3, 1))
@@ -72,7 +72,7 @@ class Test(unittest.TestCase):
                                        itertools.permutations(tau_list, len(delay_list))]))
     
     # Set up the ODE
-    test_ode = integrate.ode(sim_functions.system_with_delay)
+    test_ode = integrate.ode(sim_functions.system_state_update)
     test_ode.set_integrator("dopri5")
     test_ode.set_initial_value(y0)
     

@@ -34,7 +34,7 @@ def one_sphere(point, radius=1.0):
   else:
     return 1 if sum([num**2 for num in point]) > radius**2 else 0
   
-def system_with_delay(t, y, u, A, B):
+def system_state_update(t, y, u, A, B):
   """
   Defines the general form of the ODE that governs the dynamics of the mass
   flow controllers.

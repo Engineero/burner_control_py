@@ -15,15 +15,17 @@ def run_simulation():
   p_atm = 14.0  # psi
   t_step = 0.01  # simulation time step, seconds
   t_step_ctrl = 0.1  # controller update rate, seconds
-  K = 0.1
-  offset = 1.0
-  K_mfcs = [10.0, 5.0, 2.0, 1.0]  # MFC gains
-  tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants
-  td_mfcs = [0.2, 0.1, 0.4, 0.3]  # MFC time delays
-  y0 = [0.0, 0.0, 0.0]  # initial value
+  K = 0.1  # static pressure sensor gain, V/psi (?)
+  offset = 1.0  # static pressure sensor offset, V (?)
+  K_mfcs = [99.21, 5.0, 2.0, 1.0]  # MFC gains: [air, pilot, middle, outer], SLPM/V
+#   tau_mfcs = [1.5, 2.5, 3.0, 1.4]  # MFC time constants, sec
+  zeta_mfcs = [0.7054, 0.6, 0.6, 0.6]  # MFC damping ratios
+  wn_mfcs = [1.3501, 1, 1, 1]  # MFC natural frequencies, rad/sec
+  td_mfcs = [1.8, 0.1, 0.4, 0.3]  # MFC time delays, sec
+  y0 = [0.0, 0.0, 0.0, 0.0]  # initial value, 2nd order sys with 3,2 order Pade approximation of time delay
   mfc_list = []
   control_law_list = []
-  Q = np.ndarray([[100, 0, 0], [0, 1, 0], [0, 0, 1]])
+  Q = np.ndarray([[100, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0] [0, 0, 0, 1]])
   R = np.ndarray([[1]])
   sensor_locations = [43.81, 76.2, 236.728, 609.6]  # sensor locations from base, mm
     
@@ -35,10 +37,10 @@ def run_simulation():
   #TODO figure out sensor transfer functions or models!
   
   # Initialize mass flow controller (MFC) list and control law list
-  for K, tau, delay in zip(K_mfcs, tau_mfcs, td_mfcs):
-    A, B, C = sim_functions.get_state_matrices(K, tau, delay)
+  for K, zeta, wn, td in zip(K_mfcs, zeta_mfcs, wn_mfcs, td_mfcs):
+    A, B, C = sim_functions.get_second_ord_matrices(K, zeta, wn, td)
     K_lqr = sim_functions.make_lqr_law(A, B, Q, R)
-    mfc_list.append(lab_hardware.MFC(lambda t, y, u: sim_functions.system_with_delay(t, y, u, A, B),
+    mfc_list.append(lab_hardware.MFC(lambda t, y, u: sim_functions.system_state_update(t, y, u, A, B),
                                      lambda y: sim_functions.system_output(y, C),
                                      y0))
     control_law_list.append(lambda e: -K_lqr.dot(e))
