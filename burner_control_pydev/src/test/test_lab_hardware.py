@@ -27,7 +27,7 @@ def test_ode(t, y, u, K, tau):
     float: response = K*u/tau - y/tau
   """
       
-  return K*u/tau - y/tau
+  return K * u / tau - y / tau
 
 def test_ctrl_law(e, K):
   """
@@ -41,7 +41,7 @@ def test_ctrl_law(e, K):
     float: control effort u = K*(ref - y)
   """
   
-  return K*e
+  return K * e
 
 class TestLabHardware(unittest.TestCase):
   """Unit tests for classes in lab_hardware.py."""
@@ -62,8 +62,8 @@ class TestLabHardware(unittest.TestCase):
     self.wn = 1.3501  # air MFC natural frequency, rad/s
     self.td = 1.8  # air MFC time delay, sec
     self.y0_1 = [0]
-    self.y0_2 = [0]*3  # for first-order model
-    self.y0_3 = [0]*4  # for second-order model
+    self.y0_2 = [0] * 3  # for first-order model
+    self.y0_3 = [0] * 4  # for second-order model
     A, B, self.C = sim_functions.get_state_matrices(self.K_list[1],
                                                self.tau_list[-1],
                                                self.delay_list[0])
@@ -74,7 +74,7 @@ class TestLabHardware(unittest.TestCase):
     self.mass_flow_des = [4.0, 2.0]
     self.std = 1.0
     self.Ks = 2.0  # filter static gain (?)
-    Q = 1e-5*np.identity(A2.shape[0])  # process noise covariance
+    Q = 1e-5 * np.identity(A2.shape[0])  # process noise covariance
     R = self.std  # measurement noise covariance
     self.P = Q  # initial estimate of error covariance
     self.offset = 0.0
@@ -92,7 +92,7 @@ class TestLabHardware(unittest.TestCase):
     self.mfc_list = [lab_hardware.MFC(lambda t, y, u: test_ode(t, y, u, K, tau),
                                       lambda x: x[0], self.y0_1)
                      for K, tau in zip(self.K_list, self.tau_list)]
-    self.test_KF = lab_hardware.KalmanFilter(A2, B2, self.Ks*self.C2, Q, R, self.P)
+    self.test_KF = lab_hardware.KalmanFilter(A2, B2, self.Ks * self.C2, Q, R, self.P)
     self.test_sensor = lab_hardware.StaticSensor(lambda y: sim_functions.static_model(y, self.Ks, self.offset, mean, self.std),
                                                  1.0)
 
@@ -164,7 +164,7 @@ class TestLabHardware(unittest.TestCase):
     self.assertTrue(self.test_mfc3.get_output() != self.y0_3[0],
                     "MFC3 state failed to update from y0")
     self.assertAlmostEqual(self.test_mfc3.get_output()[0][0], self.K_list[-1],
-                           delta=0.05*self.K_list[-1],
+                           delta=0.05 * self.K_list[-1],
                            msg="Final value of MFC3 not close to expected value")
     self.assertEqual(self.test_mfc3.get_time(), time,
                      "MFC3 simulation time out of sync with global simulation time")
@@ -186,7 +186,7 @@ class TestLabHardware(unittest.TestCase):
     """Tests the lab_hardware.Controller class."""
     
     # Initialize constants and lists used for test
-    expected = [Kp*K*A/(1 + Kp*K) for Kp, K, A in
+    expected = [Kp * K * A / (1 + Kp * K) for Kp, K, A in
                 zip(self.Kp_list, self.K_list, self.mass_flow_des)]
     time = 0.0
     t_list = []
@@ -200,7 +200,7 @@ class TestLabHardware(unittest.TestCase):
                                         self.t_step_ctrl)
     
     # Test the single-MFC controller
-    #TODO test more fringe cases for initialization, add checks and exceptions to classes
+    # TODO test more fringe cases for initialization, add checks and exceptions to classes
     self.assertIsInstance(test_ctrl, lab_hardware.Controller,
                           "Single MFC controller not initialized to correct class.")
     self.assertEqual(test_ctrl.get_time(), time,
@@ -236,12 +236,12 @@ class TestLabHardware(unittest.TestCase):
       else:
         break
     
-    #TODO test the result of running the controller
+    # TODO test the result of running the controller
     self.assertAlmostEqual(test_ctrl.get_time(), self.stop_time,
                            delta=self.t_step,
                            msg="Controller's simulation time not equal to global stop time.")
     for res, exp in zip(test_ctrl.get_output(), expected):
-      self.assertAlmostEqual(res, exp, delta=0.1*exp,
+      self.assertAlmostEqual(res, exp, delta=0.1 * exp,
                        msg="Controlled result not within 10% of expected result.")
     
     # PLot the response of the controlled MFCs
@@ -320,7 +320,7 @@ class TestLabHardware(unittest.TestCase):
       self.assertNotEqual(self.test_sensor.update(P_actual), expected,
                           "Measured pressure with noise equals value without noise. Noise may not be working.")
       self.assertAlmostEqual(self.test_sensor.get_output(), expected,
-                             delta=4*self.std,
+                             delta=4 * self.std,
                              msg="Stored sensor state >3*std away from expected state.")
 
   def test_kalman_filter_class(self):
@@ -363,8 +363,8 @@ class TestLabHardware(unittest.TestCase):
         break
     
     # Test the result of running the system with the KF
-    self.assertAlmostEqual(response[-1][0], self.K_list[-1]*self.input_val,
-                           delta=3*self.std,
+    self.assertAlmostEqual(response[-1][0], self.K_list[-1] * self.input_val,
+                           delta=3 * self.std,
                            msg="Filtered response value not within 3*std of expected value.")
     
     # Plot the response of the MFCs
@@ -379,5 +379,5 @@ class TestLabHardware(unittest.TestCase):
 
     
 if __name__ == "__main__":
-  #import sys;sys.argv = ['', 'Test.testLabHardware']
+  # import sys;sys.argv = ['', 'Test.testLabHardware']
   unittest.main()

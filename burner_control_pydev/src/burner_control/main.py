@@ -36,7 +36,7 @@ def run_simulation():
                               location=0.0)]
   for loc in sensor_locations:
     sensor_list.append(lab_hardware.DynamicSensor(model=tf1, location=loc))
-  #TODO figure out sensor transfer functions or models!
+  # TODO figure out sensor transfer functions or models!
   
   # Initialize mass flow controller (MFC) list and control law list
   for K, zeta, wn, td in zip(K_mfcs, zeta_mfcs, wn_mfcs, td_mfcs):
@@ -45,15 +45,15 @@ def run_simulation():
     mfc_list.append(lab_hardware.MFC(lambda t, y, u: sim_functions.system_state_update(t, y, u, A, B),
                                      lambda y: sim_functions.system_output(y, C),
                                      y0))
-    control_law_list.append(lambda e: -K_lqr.dot(e))
+    control_law_list.append(lambda e:-K_lqr.dot(e))
     
   # Insert our first-order-modeled middle fuel MFC
   A, B, C = sim_functions.get_state_matrices(K_mid, tau_mid, td_mid)
-  K_lqr = sim_functions.make_lqr_law(A, B, Q[:2,:2], R)  # smaller Q matrix, only 3 states
+  K_lqr = sim_functions.make_lqr_law(A, B, Q[:2, :2], R)  # smaller Q matrix, only 3 states
   mfc_list.insert(2, lab_hardware.MFC(lambda t, y, u: sim_functions.system_state_update(t, y, u, A, B),
                                      lambda y: sim_functions.system_output(y, C),
                                      y0[:2]))  # shorter y0, only 3 states
-  control_law_list.insert(2, lambda e: -K_lqr.dot(e))
+  control_law_list.insert(2, lambda e:-K_lqr.dot(e))
   
   # mfc and control law list should be in order: [air, pilot, middle, outer]
   # Initialize the combustor object

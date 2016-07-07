@@ -30,9 +30,9 @@ def one_sphere(point, radius=1.0):
     raise ValueError("Radius must be > 0.")
     
   if isinstance(point, numbers.Number):
-    return 1 if point**2 > radius**2 else 0
+    return 1 if point ** 2 > radius ** 2 else 0
   else:
-    return 1 if sum([num**2 for num in point]) > radius**2 else 0
+    return 1 if sum([num ** 2 for num in point]) > radius ** 2 else 0
   
 def system_state_update(t, y, u, A, B):
   """
@@ -52,7 +52,7 @@ def system_state_update(t, y, u, A, B):
       first-order ODE dydt = K*u(t-delay)*heavyside(t-delay)/tau - y(t)/tau
   """
   
-  #TODO add an option for noise to this model:
+  # TODO add an option for noise to this model:
   # A.dot(y.reshape(len(y), 1)) + B.dot(u) + N.dot(np.random.normal(mean, std))
   # maybe use np.random.normal(mean, std, (len(y), 1)) to return an array of
   # noise, then define "N" with the appropriate dimensions.
@@ -106,7 +106,7 @@ def static_model(y, K, offset, mean=0, std=0):
     noise = 0
   else:
     noise = np.random.normal(mean, std)
-  return K*y + offset + noise
+  return K * y + offset + noise
 
 def make_lqr_law(A, B, Q, R):
   """
@@ -152,10 +152,10 @@ def get_state_matrices(K, tau, td):
       y = C*x
   """
   
-  den = tau*td**2
-  A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
-  B = np.array([[0], [0], [12/den]])
-  C = np.array([[K, -K*td/2, K*td**2/12]])
+  den = tau * td ** 2
+  A = np.array([[0, 1, 0], [0, 0, 1], [-12 / den, -(6 * td + 12 * tau) / den, -(6 * tau + td) / tau / td]])
+  B = np.array([[0], [0], [12 / den]])
+  C = np.array([[K, -K * td / 2, K * td ** 2 / 12]])
   return A, B, C
 
 def get_second_ord_matrices(K, zeta, wn, td):
@@ -175,9 +175,9 @@ def get_second_ord_matrices(K, zeta, wn, td):
       y = C*x
   """
   
-  td2 = td**2
-  wn2 = wn**2
-  A = np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [-20*wn2/td2, (-8*td*wn2-40*zeta*wn)/td2, (-td2*wn2-40*zeta*wn*td-20)/td2, (-2*zeta*td*wn-8)/td]])
-  B = np.array([[0], [0], [0], [20*wn2/td2]])
-  C = np.array([[K, -K*3*td/5, K*3*td2/20, -td**3/60]])
+  td2 = td ** 2
+  wn2 = wn ** 2
+  A = np.array([[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [-20 * wn2 / td2, (-8 * td * wn2 - 40 * zeta * wn) / td2, (-td2 * wn2 - 40 * zeta * wn * td - 20) / td2, (-2 * zeta * td * wn - 8) / td]])
+  B = np.array([[0], [0], [0], [20 * wn2 / td2]])
+  C = np.array([[K, -K * 3 * td / 5, K * 3 * td2 / 20, -td ** 3 / 60]])
   return A, B, C

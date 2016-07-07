@@ -71,10 +71,10 @@ class Combustor():
     """
     
     self.controller.update(mass_flow_des, self.t_step, self.time)
-    #TODO figure out how to update desired mass flow rate
+    # TODO figure out how to update desired mass flow rate
     
     flame_snapshot = self.flame.update(self.controller.get_output())
-    #TODO figure out what the flame has to return. Or we could just pass the
+    # TODO figure out what the flame has to return. Or we could just pass the
     # flame to sensors.
     
     for sensor in self.sensor_list:
@@ -97,7 +97,7 @@ class Flame():
     """
     
     self.operating_map = operating_map
-    self.model = model  #TODO figure out what to do with the model
+    self.model = model  # TODO figure out what to do with the model
     self.state = False  # no flame to start
     
   def ignite(self):
@@ -133,7 +133,7 @@ class Flame():
       flame_snapshot (undecided): I am not sure what this should be yet
     """
     
-    #TODO update the flame model and return some snapshot of the physical
+    # TODO update the flame model and return some snapshot of the physical
     # combustor space maybe?
     
     # Update the flame state based on operating map
@@ -222,7 +222,7 @@ class StaticSensor(Instrument):
     
     self.model = model
     self.reading = 0.0
-    #TODO figure out how to make use of the location
+    # TODO figure out how to make use of the location
     super(StaticSensor, self).__init__(location)  # parent keeps location
     
   def get_output(self):
@@ -263,8 +263,8 @@ class DynamicSensor(Instrument):
       rate (float): sample rate of the sensor, Hz
     """
     
-    #TODO figure out an ODE dynamic sensor model that works
-    #TODO maybe use this class to just simulate some noise signal at sensor
+    # TODO figure out an ODE dynamic sensor model that works
+    # TODO maybe use this class to just simulate some noise signal at sensor
     # rate with frequency-dependent amplitude based on location in the operating
     # space of the combustor?
     self.model = integrate.ode(model)
@@ -273,7 +273,7 @@ class DynamicSensor(Instrument):
     self.rate = rate
     self.reading = []
     self.time = []
-    #TODO figure out how to make use of the location
+    # TODO figure out how to make use of the location
     super(DynamicSensor, self).__init__(location)  # parent keeps location
   
   def get_time_series(self):
@@ -316,7 +316,7 @@ class DynamicSensor(Instrument):
       time (float array): time value for each reading, starting at 0.0
     """
     
-    #TODO
+    # TODO
     # Maybe make a time series here and store it as self.reading. Basically
     # simulate the response of the sensor at the sensor's sample rate for the
     # time t_step, store that time series, and then we can either return that
@@ -359,7 +359,7 @@ class Controller():
     if isinstance(mfc_list, MFC):
       self.u_ctrl = [0]  # single MFC case
     else:
-      self.u_ctrl = [0]*len(mfc_list)  # multiple MFC case
+      self.u_ctrl = [0] * len(mfc_list)  # multiple MFC case
     
   def get_output(self):
     """
@@ -404,7 +404,7 @@ class Controller():
     # Update the control effort based on the current and desired state when the
     # simulation time reaches another controller period.
     if self.get_time() % self.t_step_ctrl < 1.0:
-      #TODO test for length of mass_flow_desired
+      # TODO test for length of mass_flow_desired
       self.u_ctrl = [ctrl_law(ref - mfc.get_output()) for ctrl_law, mfc, ref
                      in zip(self.control_law_list, self.mfc_list, mass_flow_des)]
     
@@ -474,7 +474,7 @@ class KalmanFilter():
       ndarray: xhat, current state estimate
     """
     
-    #TODO maybe implement KF without storing _minus states or _apri states
+    # TODO maybe implement KF without storing _minus states or _apri states
     # Store previous values
     self.xhat_minus = self.xhat
     self.P_minus = self.P
@@ -486,7 +486,7 @@ class KalmanFilter():
     if inv.shape != ():
       inv = np.linalg.inv(inv)
     else:
-      inv = 1/inv
+      inv = 1 / inv
     K = P_apri.dot(self.C.T).dot(inv)
     self.xhat = x_apri + K.dot(y - self.C.dot(x_apri))
     self.P = (np.identity(self.P.shape[0]) - K.dot(self.C)).dot(P_apri)

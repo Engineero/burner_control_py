@@ -63,7 +63,7 @@ class Test(unittest.TestCase):
     """Tests for system_state_update function for first-order ODE."""
     
     # Define constants
-    y0 = np.reshape([0.5]*3, (3, 1))
+    y0 = np.reshape([0.5] * 3, (3, 1))
     t_step = 0.01
     tau_list = [0.1, 0.3, 1]
     delay_list = [0.1, 0.3, 1]
@@ -84,14 +84,14 @@ class Test(unittest.TestCase):
     # Test response of the ODE
     print("Testing ODE", end="", flush=True)
     for tau, delay in param_list:
-      den = tau*delay**2
-      A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
-      B = np.array([[0], [0], [12/den]])
+      den = tau * delay ** 2
+      A = np.array([[0, 1, 0], [0, 0, 1], [-12 / den, -(6 * delay + 12 * tau) / den, -(6 * tau + delay) / tau / delay]])
+      B = np.array([[0], [0], [12 / den]])
       for u in input_list:
         test_ode.set_initial_value(y0, 0)
         time = 0
         print(".", end="", flush=True)
-        while test_ode.successful() and time < 10*tau+delay:
+        while test_ode.successful() and time < 10 * tau + delay:
           # test_ode.set_f_params(*[u, tau, delay])
           test_ode.set_f_params(*[u, A, B])
           test_ode.integrate(test_ode.t + t_step)
@@ -123,15 +123,15 @@ class Test(unittest.TestCase):
     
     # Test response of the output function
     for K, delay in param_list:
-      C = np.array([[K, -K*delay/2, K*delay**2/12]])
+      C = np.array([[K, -K * delay / 2, K * delay ** 2 / 12]])
       for y in y_list:
         self.assertEqual(sim_functions.system_output(np.array(y), C)[0],
-                         y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12,
+                         y[0] * K - y[1] * K * delay / 2 + y[2] * K * delay ** 2 / 12,
                          "Unexpected output function response for y={}, K={}, delay={}".format(y, K, delay))
         for mean, std in noise_list:  # test response with noise
           self.assertAlmostEqual(sim_functions.system_output(np.array(y), C, mean, std),
-                                 y[0]*K - y[1]*K*delay/2 + y[2]*K*delay**2/12 + mean,
-                                 delta=4*std,
+                                 y[0] * K - y[1] * K * delay / 2 + y[2] * K * delay ** 2 / 12 + mean,
+                                 delta=4 * std,
                                  msg="Output function response not within 4 std of expected.\nNote this may not be an error since ~0.01% of values lie outside of this range.")
     
     # Test that function raises TypeError for inputs of wrong dimension
@@ -161,7 +161,7 @@ class Test(unittest.TestCase):
     # Test the default function implementation
     for y in y_list:
       for K, offset in param_list:
-        self.assertEqual(sim_functions.static_model(y, K, offset), K*y+offset,
+        self.assertEqual(sim_functions.static_model(y, K, offset), K * y + offset,
                          "Default static_model does not return expected value for params y={}, K={}, offset={}".format(y, K, offset))
     
     # Test the function with Gaussian noise
@@ -169,7 +169,7 @@ class Test(unittest.TestCase):
       for K, offset in param_list:
         for std in std_list:
           self.assertNotEqual(sim_functions.static_model(y, K, offset, mean, std),
-                                 K*y+offset,
+                                 K * y + offset,
                                  "Static model response not showing noise effect.")
       
     # Test that list and string arguments raise a TypeError
@@ -190,9 +190,9 @@ class Test(unittest.TestCase):
     R = np.array([[1]])  # control effort weight
     
     for tau, delay in param_list:
-      den = tau*delay**2
-      A = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*delay + 12*tau)/den, -(6*tau + delay)/tau/delay]])
-      B = np.array([[0], [0], [12/den]])
+      den = tau * delay ** 2
+      A = np.array([[0, 1, 0], [0, 0, 1], [-12 / den, -(6 * delay + 12 * tau) / den, -(6 * tau + delay) / tau / delay]])
+      B = np.array([[0], [0], [12 / den]])
       
       # Create control law
       K_lqr, _, eig_vals = sim_functions.make_lqr_law(A, B, Q, R)
@@ -222,10 +222,10 @@ class Test(unittest.TestCase):
                                        for y in
                                        itertools.permutations(delay_list, len(K_list))]))
     for K, tau, td in param_list:
-      den = tau*td**2
-      A_exp = np.array([[0, 1, 0], [0, 0, 1], [-12/den, -(6*td + 12*tau)/den, -(6*tau + td)/tau/td]])
-      B_exp = np.array([[0], [0], [12/den]])
-      C_exp = np.array([[K, -K*td/2, K*td**2/12]])
+      den = tau * td ** 2
+      A_exp = np.array([[0, 1, 0], [0, 0, 1], [-12 / den, -(6 * td + 12 * tau) / den, -(6 * tau + td) / tau / td]])
+      B_exp = np.array([[0], [0], [12 / den]])
+      C_exp = np.array([[K, -K * td / 2, K * td ** 2 / 12]])
       A, B, C = sim_functions.get_state_matrices(K, tau, td)
       self.assertListEqual(A.tolist(), A_exp.tolist(),
                            "A matrix does not match expected.")
@@ -240,5 +240,5 @@ class Test(unittest.TestCase):
   
 
 if __name__ == "__main__":
-  #import sys;sys.argv = ['', 'Test.testName']
+  # import sys;sys.argv = ['', 'Test.testName']
   unittest.main()
